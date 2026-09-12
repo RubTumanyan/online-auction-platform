@@ -1,0 +1,27 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug (Ninja + vcpkg)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/debug",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON",
+        "VCPKG_MANIFEST_MODE": "ON"
+      }
+    }
+  ],
+  "buildPresets": [{ "name": "debug", "configurePreset": "debug" }],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    }
+  ]
+}

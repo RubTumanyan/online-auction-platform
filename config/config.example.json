@@ -1,0 +1,11 @@
+{
+  "listeners": [{ "address": "127.0.0.1", "port": 8080, "https": false }],
+  "app": {
+    "number_of_threads": 2,
+    "document_root": "./public",
+    "home_page": "index.html",
+    "upload_path": "../runtime/uploads",
+    "enable_session": false,
+    "log": { "log_level": "INFO", "display_local_time": false }
+  }
+}

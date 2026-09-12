@@ -76,3 +76,15 @@ out/
 
 # Secrets
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Local CMake settings and runtime files
+CMakeUserPresets.json
+CMakeSettings.json
+config/config.json
+runtime/
