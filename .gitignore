@@ -67,3 +67,12 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Visual Studio
+.vs/
+out/
+*.user
+*.suo
+
+# Secrets
+.env
