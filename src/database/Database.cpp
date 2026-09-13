@@ -216,7 +216,13 @@ void initialize(Connection& connection, const std::filesystem::path& dataDirecto
             connection.execute("PRAGMA user_version = 2");
             version = 2;
         }
-        if (version != 2)
+        if (version == 2)
+        {
+            connection.executeScript(readFile(dataDirectory / "migrations" / "003_auction_lifecycle.sql"));
+            connection.execute("PRAGMA user_version = 3");
+            version = 3;
+        }
+        if (version != 3)
         {
             throw std::runtime_error("Unsupported database version: " + std::to_string(version));
         }

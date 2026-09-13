@@ -169,7 +169,7 @@ models::PlacedBid BidService::place(std::int64_t lotId, std::int64_t userId, std
         const auto currentPrice = lot.integer(0);
         const auto currentWinner = lot.integer(1);
         if (lot.text(2) != "active" || lot.integer(3) != 0)
-            throw ApiError(ApiErrorKind::conflict, "Auction has ended");
+            throw ApiError(ApiErrorKind::conflict, "Auction is closed");
         if (currentPrice > std::numeric_limits<std::int64_t>::max() - kMinimumStep ||
             amount < currentPrice + kMinimumStep)
             throw ApiError(ApiErrorKind::conflict, "Bid must be at least current price plus minimum step");

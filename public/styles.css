@@ -93,6 +93,8 @@ footer p { margin: 0; }
 .detail-copy { padding-top: .5rem; }
 .detail-copy h1 { margin-bottom: 1.1rem; font-size: clamp(2.2rem,4vw,3.7rem); }
 .detail-status-row { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.8rem; color: var(--ink-soft); font-size: .85rem; }
+.live-state { min-height: 1.4rem; margin: -1.4rem 0 1rem; color: var(--success); font-size: .82rem; }
+.live-state.unavailable { color: var(--ink-soft); }
 .status-pill { padding: .35rem .65rem; color: var(--success); background: #e5f3ed; border-radius: 100px; font-weight: 750; }
 .status-pill.ended { color: var(--danger); background: #f8e8e5; }
 .bid-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.25rem; color: #fff; background: var(--navy); border-radius: var(--radius); }
@@ -118,6 +120,7 @@ footer p { margin: 0; }
 .text-button { padding: 0; color: var(--gold); background: transparent; border: 0; font-weight: 750; text-decoration: underline; text-underline-offset: .2rem; }
 .auth-dialog>.text-button { margin-top: 1rem; }
 .form-message { min-height: 1.4rem; margin: .25rem 0; color: var(--danger); font-size: .86rem; }
+.final-result { margin: .85rem 0 0; padding: .8rem 1rem; color: var(--ink); background: #f3ead5; border-left: 3px solid var(--gold); border-radius: .25rem; font-weight: 700; }
 .bidding-panel { margin-top: 1.6rem; padding: 1.25rem; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
 .bidding-panel h2, .bid-history h2 { margin-bottom: .65rem; font: 1.35rem Georgia,"Times New Roman",serif; }
 .bidding-panel>p { color: var(--ink-soft); }

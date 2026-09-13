@@ -2,6 +2,8 @@
 
 #include "runtime/RuntimePaths.h"
 #include "database/Database.h"
+#include "realtime/AuctionEvents.h"
+#include "services/AuctionCloseService.h"
 #include "services/AuthBidService.h"
 
 #include <exception>
@@ -26,6 +28,27 @@ int main(int argc, char* argv[])
         auction::database::initialize(database, "database");
         auction::services::AuthService(databasePath).ensureDemoUsers();
         std::cout << "Database ready: " << std::filesystem::absolute(databasePath).string() << std::endl;
+        const auto closeExpired = [databasePath] {
+            try
+            {
+                for (const auto& closed : auction::services::AuctionCloseService(databasePath).closeExpired())
+                {
+                    const auto winner = closed.winnerUsername.value_or("none");
+                    LOG_INFO << "Lot " << closed.lotId << " closed; winner=" << winner
+                             << "; finalPrice=" << closed.currentPrice;
+                    auction::realtime::AuctionEventHub::instance().publish(
+                        closed.lotId, auction::realtime::lotClosedEvent(closed));
+                }
+            }
+            catch (const std::exception& error)
+            {
+                LOG_ERROR << "Auction closing pass failed: " << error.what();
+            }
+        };
+        drogon::app().registerBeginningAdvice([closeExpired] {
+            closeExpired();
+            drogon::app().getLoop()->runEvery(1.0, closeExpired);
+        });
         drogon::app().run();
     }
     catch (const std::exception& error)

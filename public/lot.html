@@ -38,6 +38,7 @@
           <p class="eyebrow" id="detail-category"></p>
           <h1 id="detail-title"></h1>
           <div class="detail-status-row"><span class="status-pill" id="detail-status">Live auction</span><span id="detail-lot-number"></span></div>
+          <p class="live-state" id="live-status" role="status" aria-live="polite">Connecting live updates…</p>
           <div class="bid-panel">
             <div><span class="meta-label">Current price</span><strong class="detail-price" id="detail-price"></strong></div>
             <div><span class="meta-label">Time remaining</span><strong class="detail-countdown" id="detail-countdown"></strong></div>
@@ -52,16 +53,17 @@
             <p id="login-required">Log in to place a bid. <button class="text-button" id="bid-login" type="button">Login or register</button></p>
             <form id="bid-form" hidden>
               <label for="bid-amount">Your bid (USD)</label>
-              <div class="bid-input-row"><input id="bid-amount" name="amount" inputmode="decimal" placeholder="0.00" required><button class="button button-primary" type="submit">Place bid</button></div>
+              <div class="bid-input-row"><input id="bid-amount" name="amount" inputmode="decimal" placeholder="0.00" required><button class="button button-primary" id="bid-submit" type="submit">Place bid</button></div>
               <p class="input-help" id="minimum-bid"></p>
             </form>
             <p class="form-message" id="bid-message" role="status"></p>
+            <p class="final-result" id="final-result" role="status" hidden></p>
           </section>
           <section class="bid-history" aria-labelledby="history-title"><h2 id="history-title">Recent bids</h2><p id="history-state">Loading bid history…</p><ol id="bid-list"></ol></section>
         </div>
       </article>
     </main>
-    <footer><p>Aurelian Auctions</p><p>Secure demo bidding · Real-time updates arrive in Phase 6.</p></footer>
+    <footer><p>Aurelian Auctions</p><p>Secure bidding · Authoritative live auction updates.</p></footer>
     <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
       <button class="dialog-close" id="auth-close" type="button" aria-label="Close">×</button>
       <p class="eyebrow">Member access</p><h2 id="auth-title">Login</h2>

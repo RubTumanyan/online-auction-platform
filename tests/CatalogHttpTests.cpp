@@ -129,6 +129,10 @@ DROGON_TEST(LotDetailsAndStaticImage)
     CHECK(body["id"].asInt64() == 101);
     CHECK(body["category"]["name"].asString() == "Electronics");
     CHECK(body["minimum_step"].asInt64() == 500);
+    CHECK(body["status"].asString() == "active");
+    CHECK(body["endsAt"].asString() == body["end_time"].asString());
+    CHECK(body["currentPrice"].asInt64() == body["current_price"].asInt64());
+    CHECK(body["winnerUsername"].isNull());
     CHECK(body.isMember("description"));
     CHECK(body.isMember("created_at"));
 
@@ -148,6 +152,18 @@ DROGON_TEST(MissingLot)
     CHECK(json(response)["error"].asString() == "Lot not found");
 }
 
+DROGON_TEST(ExpiredLotLifecycle)
+{
+    const auto [result, response] = get("/api/lots/1000");
+    REQUIRE(result == drogon::ReqResult::Ok);
+    REQUIRE(response != nullptr);
+    CHECK(response->statusCode() == drogon::k200OK);
+    const auto body = json(response);
+    CHECK(body["status"].asString() == "closed");
+    CHECK(body["winnerUsername"].isNull());
+    CHECK(body["endsAt"].asString() == "2026-09-12T00:00:01Z");
+}
+
 int main(int argc, char* argv[])
 {
     Json::Value config;
@@ -162,7 +178,7 @@ int main(int argc, char* argv[])
     {
         auction::database::Connection database(databasePath);
         auction::database::initialize(database, "database");
-        database.execute("UPDATE auctions SET status = 'ended' WHERE id = 999");
+        database.execute("UPDATE auctions SET status='closed',closed_at=ends_at WHERE id=999");
         database.execute("UPDATE auctions SET ends_at = '2026-09-12T00:00:01Z' WHERE id = 1000");
     }
 

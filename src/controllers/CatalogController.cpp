@@ -71,11 +71,20 @@ Json::Value lotJson(const models::Lot& lot, bool detailed)
     result["image_url"] = lot.imageUrl;
     result["start_price"] = Json::Int64(lot.startingPriceCents);
     result["current_price"] = Json::Int64(lot.currentPriceCents);
+    result["currentPrice"] = Json::Int64(lot.currentPriceCents);
     result["minimum_step"] = Json::Int64(kMinimumStepCents);
     if (detailed) result["created_at"] = lot.createdAt;
     if (detailed && lot.highestBidderUsername) result["highest_bidder_username"] = *lot.highestBidderUsername;
     result["end_time"] = lot.endTime;
+    result["endsAt"] = lot.endTime;
     result["status"] = lot.status;
+    if (detailed)
+    {
+        if (lot.highestBidderUsername) result["winnerUsername"] = *lot.highestBidderUsername;
+        else result["winnerUsername"] = Json::nullValue;
+        if (lot.closedAt) result["closedAt"] = *lot.closedAt;
+        else result["closedAt"] = Json::nullValue;
+    }
     return result;
 }
 }

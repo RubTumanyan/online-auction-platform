@@ -2,7 +2,7 @@
 
 Internship assignment. Deadline: **September 14, 2026**.
 
-## Implemented scope (Phases 1–5)
+## Implemented scope (Phases 1–6)
 
 Phase 1 provides the C++20/Drogon server, CMake/CTest, a static home page, and
 `GET /api/health` returning HTTP 200 with JSON `{"status":"ok"}`.
@@ -20,8 +20,10 @@ The frontend uses the Phase 3 API directly and includes URL-persisted search, ca
 filtering, sorting, pagination, shared live countdowns, and loading/empty/error states.
 
 Phase 5 adds username/password authentication, expiring bearer sessions, atomic bid
-placement, bid history, and the minimum matching frontend controls. Real-time updates
-remain Phase 6 work.
+placement, bid history, and the minimum matching frontend controls.
+
+Phase 6 adds persisted auction closure and winner selection, a one-second event-loop
+scheduler, per-lot WebSocket broadcasts, and graceful live updates on the details page.
 
 ## Windows prerequisites
 
@@ -97,7 +99,7 @@ Expect HTTP 200, `Content-Type: application/json`, and `{"status":"ok"}` from he
 
 On first startup the server creates `runtime/auction.sqlite3` beside the executable,
 applies `database/schema.sql`, and inserts the deterministic seed in one transaction.
-Later starts migrate older databases to schema version 2 and leave existing data intact. To recreate
+Later starts migrate older databases to schema version 3 and leave existing data intact. To recreate
 the seed database in the normal debug build, stop the server and run:
 
 ```powershell
@@ -201,7 +203,8 @@ Manual testing checklist:
 - Resize to desktop, tablet, and mobile widths and navigate controls with the keyboard.
 - Confirm the browser console has no JavaScript errors.
 
-Real-time bid updates are not implemented yet.
+Real-time catalog-card updates are intentionally not implemented; the lot-details page is
+the authoritative live view.
 
 ## Phase 5 authentication and bidding
 
@@ -253,7 +256,8 @@ curl.exe --include -X POST -H "Authorization: Bearer $token" http://127.0.0.1:80
 
 Amounts are integer cents at the API boundary. The UI displays USD and converts an entered
 dollar amount to cents before submitting it. Successful bids refresh the displayed price
-and recent history; Phase 6 will add WebSocket or SSE updates across browser sessions.
+and recent history; Phase 6 broadcasts the accepted result to every browser subscribed to
+that lot.
 
 Manual Phase 5 flow:
 
@@ -263,6 +267,82 @@ Manual Phase 5 flow:
 - Try bidding below the minimum and bidding again while already highest; both show the
   server's validation message without modifying the bid history.
 - Log out and confirm the bid form is replaced by the login prompt.
+
+## Phase 6 real-time lifecycle
+
+An auction has exactly two public lifecycle states. `active` means its UTC end time is
+still in the future and it accepts bids. `closed` means `now >= endsAt`; it rejects bids,
+has an immutable closure timestamp, and exposes either the winning username or `null`.
+Schema version 3 persists `closed_at` and replaces the legacy stored `ended` value with
+`closed`. The scheduler runs once per second on Drogon's main event loop, so it stops with
+the server and does not own a background thread.
+
+Both bid placement and the closing pass use SQLite `BEGIN IMMEDIATE`. The end time is
+checked again inside the bid transaction. Consequently, only one writer can cross the
+deadline at a time: a pre-deadline bid commits before closure, while a bid observed at or
+after the deadline returns HTTP 409. Closing changes only `active` rows, making repeated
+passes idempotent. The winner and final price are derived from the highest stored bid;
+an auction with no bids keeps its starting/current price and has no winner.
+
+`GET /api/lots/{id}` keeps the Phase 3 snake-case fields and also returns the Phase 6
+fields `status`, `endsAt`, `currentPrice`, `winnerUsername`, and `closedAt`. Only public
+usernames are exposed.
+
+The live endpoint is:
+
+```text
+GET /ws/lots/{id}
+```
+
+Connections are grouped by lot ID and removed from the subscription hub when they close.
+Bidding remains exclusively on the authenticated HTTP endpoint. Accepted bids produce:
+
+```json
+{
+  "type": "bid_updated",
+  "lotId": 42,
+  "currentPrice": 15000,
+  "minimumNextBid": 15500,
+  "bid": {
+    "id": 101,
+    "bidderUsername": "alice",
+    "amount": 15000,
+    "createdAt": "2026-09-13T12:00:00Z"
+  }
+}
+```
+
+Closure produces:
+
+```json
+{
+  "type": "lot_closed",
+  "lotId": 42,
+  "status": "closed",
+  "currentPrice": 15000,
+  "winnerUsername": "alice",
+  "closedAt": "2026-09-13T12:01:00Z"
+}
+```
+
+The details page updates price, minimum bid, bid history, status, final price, and winner
+without refresh. At a local countdown of zero it displays `Closing…`, disables bidding,
+and waits for the authoritative socket/API state. It makes one reconnect attempt after a
+socket failure, then shows a subtle refresh message while preserving HTTP behavior.
+
+Two-browser manual check:
+
+1. Open the same active `/lot.html?id={id}` URL in two separate browser profiles/windows.
+2. Log in as `alice` (`Alice123!`) in one and `bob` (`Bob123!`) in the other.
+3. Place a valid bid in either window.
+4. Confirm the other window updates its price, minimum, and recent bids without refresh.
+5. For closure, set that test lot's `ends_at` to a UTC value a few seconds ahead and keep
+   both windows open. Confirm both show the final result, then verify another POST bid
+   returns HTTP 409.
+
+Known limitations: subscriptions are process-local, so multi-process deployment would
+need a shared broker; catalog cards do not receive WebSocket updates; and the demo client
+stores its bearer token in `localStorage`.
 
 ## Phase 2 image import
 
@@ -296,7 +376,9 @@ atomic initialization, schema constraints, foreign keys, prepared values, determ
 idempotent seeding, disk reopen, exact seed counts, indexes, integrity, and all local image
 files/checksums. Authentication/bidding tests cover registration conflicts, login failure,
 valid and invalid sessions, authenticated bidding, minimum bids, expired/missing lots,
-public bid history, detail-price updates, and logout. CTest starts in an unrelated directory and uses the same resource locator.
+public bid history, detail-price updates, and logout. Lifecycle tests cover active and
+expired lots, winner/no-winner closure, idempotency, bid/close serialization, and stable
+event JSON. CTest starts in an unrelated directory and uses the same resource locator.
 Tests load the example config but use loopback port **18849**, which must be free.
 CTest enforces a 30-second timeout; individual HTTP requests have a five-second timeout.
 To see individual Drogon assertions:
@@ -333,28 +415,29 @@ public/index.html              Responsive API-backed catalog page
 public/lot.html                API-backed lot-details page
 public/styles.css              Shared responsive catalog styling
 public/catalog.js              Catalog state, API rendering and countdowns
-public/lot.js                  Lot details, countdown, bid form and history
+public/lot.js                  Lot details, countdown, bidding and WebSocket updates
 public/auth.js                 Shared login/register/session UI
 src/main.cpp                   Load config and run Drogon's event loop
 src/runtime/                   Locate configuration and assets beside the executable
 src/controllers/               Thin health, catalog, authentication and bid handlers
 src/database/                  SQLite RAII wrapper, prepared statements and initialization
 database/schema.sql            Base schema and query indexes
-database/migrations/           Versioned authentication/session migration
+database/migrations/           Versioned authentication and lifecycle migrations
 database/seed_*.json           Deterministic categories and auctions
 database/image_manifest.json   Local-image provenance, dimensions and checksums
 database/image_credits.csv     Human-readable Wikimedia author/license attribution
 tools/import_commons_images.py Resumable one-time image importer and verifier
 public/images/products/        One local photograph per seeded auction
-src/services/                  Catalog, authentication and transactional bid logic
+src/services/                  Catalog, authentication, bidding and closure logic
 src/security/                  PBKDF2 password and random-token helpers
 src/repositories/              Prepared catalog queries and result mapping
 src/models/                    Catalog query and response-domain structures
-src/websocket/                 Reserved for subscriptions and broadcasts
+src/realtime/                  Per-lot event JSON and thread-safe subscription hub
 tests/HttpTests.cpp            Drogon HTTP integration tests
 tests/DatabaseTests.cpp        SQLite, seed, constraint and image-integrity tests
 tests/CatalogHttpTests.cpp      Catalog API and static product-image integration tests
 tests/AuthBidHttpTests.cpp      Authentication and bidding HTTP integration tests
+tests/AuctionLifecycleTests.cpp Closure, race-safety and event-format tests
 CMakeLists.txt                 C++20 targets, Drogon linkage, CTest registration
 CMakePresets.json              Portable debug configure/build/test commands
 vcpkg.json                     Pinned manifest with Drogon ORM and SQLite features
@@ -376,7 +459,7 @@ Keep controllers thin and business logic in services. Use prepared statements, t
 integer cents, UTC timestamps, secure password hashing, pagination, and filtering/sorting indexes.
 The target dataset is approximately 1,000 products. Keep Windows/MSVC and Linux support.
 Do not commit secrets, generated builds, or local configuration. No automatic commits or pushes.
-Real-time WebSocket/SSE updates remain Phase 6 work.
+The remaining phase is final UI polish and presentation preparation.
 
 ## References
 
@@ -441,3 +524,46 @@ ctest --test-dir build/phase5-clean --output-on-failure
 
 The authentication/bidding integration test uses loopback port **18851** and an isolated
 temporary database. The temporary database is removed when the test finishes.
+
+## Phase 6 clean verification
+
+Use a new build directory and run the entire suite:
+
+```powershell
+cmake --preset debug -B build/phase6-clean
+cmake --build build/phase6-clean --parallel
+ctest --test-dir build/phase6-clean --output-on-failure
+git diff --check
+.\build\phase6-clean\auction_server.exe
+```
+
+The `auction_lifecycle` suite uses an isolated database and exercises automatic closure,
+winner selection, no-bid closure, repeated closing, post-deadline rejection, and a
+concurrent bid/close attempt. WebSocket event builders are asserted directly; use the
+two-browser checklist above for the complete browser transport and rendering flow.
+
+### Phase 6 continuation verification (September 14, 2026)
+
+Built all C++ targets with MSVC in `build/phase6-verified`, using the previously
+installed `build/phase5-clean/vcpkg_installed` dependencies with
+`VCPKG_MANIFEST_INSTALL=OFF`. All six CTest suites passed. This was a fresh application
+build, not a fresh dependency installation.
+
+The lot page now refreshes authoritative state after a WebSocket connection opens,
+including reconnection, and retains that snapshot if initial rendering is still pending.
+Older broadcasts and delayed bid responses cannot lower the displayed price or replace
+a closed auction's final result.
+
+Additional regression checks (Node 22.13+; run from the repository root):
+
+```powershell
+node tests/LotLiveUpdatesTests.cjs
+node tests/RealtimeTransportTests.cjs build/phase6-verified
+```
+
+Both checks passed. The transport test starts an isolated server on port 18856 with a
+throwaway database, validates the WebSocket upgrade hash, and checks two subscribers
+receive accepted bids and scheduled closure, winner persistence, and per-lot isolation.
+It uses a minimal TCP WebSocket receiver because this host's Node built-in WebSocket
+client rejected the handshake. The frontend check uses a simulated DOM; the two-browser
+visual checklist above still requires manual verification.

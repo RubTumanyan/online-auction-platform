@@ -32,7 +32,7 @@ std::string snapshot(Connection& connection)
     std::string result;
     while (rows.step())
     {
-        for (int column = 0; column < 13; ++column)
+        for (int column = 0; column < 14; ++column)
         {
             const auto value = rows.text(column);
             result += std::to_string(value.size()) + ":" + value;
@@ -106,7 +106,7 @@ DROGON_TEST(DatabaseInitialization)
     Connection connection(":memory:");
     CHECK(connection.scalar("PRAGMA foreign_keys") == 1);
     initialize(connection, "database");
-    CHECK(connection.scalar("PRAGMA user_version") == 2);
+    CHECK(connection.scalar("PRAGMA user_version") == 3);
     CHECK(connection.scalar("SELECT count(*) FROM categories") == 10);
     CHECK(connection.scalar("SELECT count(*) FROM auctions") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM users") == 0);
@@ -116,7 +116,7 @@ DROGON_TEST(DatabaseInitialization)
     CHECK(connection.scalar("SELECT count(DISTINCT image_url) FROM auctions") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM auctions WHERE current_price_cents = starting_price_cents AND current_winner_id IS NULL") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM auctions WHERE ends_at > strftime('%Y-%m-%dT%H:%M:%SZ','now')") == 1000);
-    CHECK(connection.scalar("SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'") == 8);
+    CHECK(connection.scalar("SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'") == 9);
     auto foreignKeys = connection.prepare("PRAGMA foreign_key_check");
     CHECK(!foreignKeys.step());
     auto integrity = connection.prepare("PRAGMA integrity_check");
@@ -136,10 +136,10 @@ DROGON_TEST(IdempotentDeterministicSeed)
     initialize(second, "database");
     CHECK(snapshot(second) == original);
     // Reinitialization must not undo legitimate later-phase database changes.
-    first.execute("UPDATE auctions SET status = 'ended' WHERE id = 1");
+    first.execute("UPDATE auctions SET status = 'closed',closed_at=ends_at WHERE id = 1");
     initialize(first, "database");
     CHECK(first.scalar("SELECT count(*) FROM auctions") == 1000);
-    CHECK(first.scalar("SELECT count(*) FROM auctions WHERE status = 'ended'") == 1);
+    CHECK(first.scalar("SELECT count(*) FROM auctions WHERE status = 'closed'") == 1);
 }
 
 DROGON_TEST(ConstraintsAndPreparedStatements)

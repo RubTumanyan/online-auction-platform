@@ -1,6 +1,7 @@
 #include "controllers/AuthBidController.h"
 
 #include "models/AuthBid.h"
+#include "realtime/AuctionEvents.h"
 #include "services/AuthBidService.h"
 
 #include <charconv>
@@ -72,7 +73,11 @@ void handle(std::function<void(const drogon::HttpResponsePtr&)>& callback, Work&
 {
     try { work(); }
     catch (const services::ApiError& error) { callback(errorResponse(statusFor(error.kind()), error.what())); }
-    catch (const std::exception&) { callback(errorResponse(drogon::k500InternalServerError, "Internal server error")); }
+    catch (const std::exception& error)
+    {
+        LOG_ERROR << "Authentication/bidding request failed: " << error.what();
+        callback(errorResponse(drogon::k500InternalServerError, "Internal server error"));
+    }
 }
 
 std::pair<std::string, std::string> credentials(const drogon::HttpRequestPtr& request)
@@ -151,6 +156,8 @@ void AuthBidController::placeBid(const drogon::HttpRequestPtr& request,
         if (!body || !(*body)["amount"].isInt64() || (*body)["amount"].asInt64() <= 0)
             throw services::ApiError(services::ApiErrorKind::invalid, "amount must be a positive integer");
         const auto result = services::BidService(databasePath()).place(*lotId, user.id, (*body)["amount"].asInt64());
+        realtime::AuctionEventHub::instance().publish(*lotId,
+            realtime::bidUpdatedEvent(*lotId, result));
         Json::Value responseBody; responseBody["bid"] = bidJson(result.bid);
         responseBody["currentPrice"] = Json::Int64(result.currentPrice);
         auto response = drogon::HttpResponse::newHttpJsonResponse(responseBody); response->setStatusCode(drogon::k201Created); callback(response);

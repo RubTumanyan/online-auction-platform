@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
     {
         auction::database::Connection database(databasePath);
         auction::database::initialize(database, "database");
-        database.execute("UPDATE auctions SET status='ended' WHERE id=1000");
+        database.execute("UPDATE auctions SET status='closed',closed_at=ends_at WHERE id=1000");
     }
     auction::services::AuthService(databasePath).ensureDemoUsers();
     drogon::app().loadConfigJson(config);
