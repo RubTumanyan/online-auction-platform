@@ -8,10 +8,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Drogon CONFIG REQUIRED)
 include(CTest)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
 
-add_library(auction_database STATIC src/database/Database.cpp)
+add_library(auction_database STATIC src/database/Database.cpp src/security/Crypto.cpp)
 target_include_directories(auction_database PUBLIC src)
-target_link_libraries(auction_database PUBLIC unofficial::sqlite3::sqlite3 Drogon::Drogon)
+target_link_libraries(auction_database PUBLIC unofficial::sqlite3::sqlite3 Drogon::Drogon OpenSSL::Crypto)
 if(MSVC)
     target_compile_options(auction_database PRIVATE /W4 /permissive- /utf-8)
 else()
@@ -19,10 +20,12 @@ else()
 endif()
 
 add_library(auction_http OBJECT
+    src/controllers/AuthBidController.cpp
     src/controllers/CatalogController.cpp
     src/controllers/HealthController.cpp
     src/repositories/CatalogRepository.cpp
     src/runtime/RuntimePaths.cpp
+    src/services/AuthBidService.cpp
     src/services/CatalogService.cpp)
 target_include_directories(auction_http PUBLIC src)
 target_link_libraries(auction_http PUBLIC Drogon::Drogon auction_database)
@@ -38,9 +41,21 @@ set_property(TARGET auction_server PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TAR
 
 # Copy resources when an input changes. The per-configuration stamp avoids recopying
 # all 1,000 images on every incremental build while still supporting Visual Studio.
-file(GLOB_RECURSE AUCTION_RESOURCE_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false
-    "${PROJECT_SOURCE_DIR}/public/*"
-    "${PROJECT_SOURCE_DIR}/database/*")
+# Track the editable resources. The 1,000 seed images are immutable inputs verified by
+# tests; listing every image as a Ninja dependency makes Windows incremental builds slow.
+set(AUCTION_RESOURCE_FILES
+    "${PROJECT_SOURCE_DIR}/public/index.html"
+    "${PROJECT_SOURCE_DIR}/public/lot.html"
+    "${PROJECT_SOURCE_DIR}/public/styles.css"
+    "${PROJECT_SOURCE_DIR}/public/catalog.js"
+    "${PROJECT_SOURCE_DIR}/public/lot.js"
+    "${PROJECT_SOURCE_DIR}/public/auth.js"
+    "${PROJECT_SOURCE_DIR}/database/image_credits.csv"
+    "${PROJECT_SOURCE_DIR}/database/image_manifest.json"
+    "${PROJECT_SOURCE_DIR}/database/schema.sql"
+    "${PROJECT_SOURCE_DIR}/database/migrations/002_auth_bidding.sql"
+    "${PROJECT_SOURCE_DIR}/database/seed_auctions.json"
+    "${PROJECT_SOURCE_DIR}/database/seed_categories.json")
 set(AUCTION_RESOURCE_STAMP "${CMAKE_CURRENT_BINARY_DIR}/auction-resources-$<CONFIG>.stamp")
 add_custom_command(OUTPUT "${AUCTION_RESOURCE_STAMP}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:auction_server>/config"
@@ -87,4 +102,11 @@ if(BUILD_TESTING)
     add_test(NAME catalog_http COMMAND auction_catalog_tests)
     set_tests_properties(catalog_http PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 30)
+
+    add_executable(auction_auth_bid_tests tests/AuthBidHttpTests.cpp)
+    target_link_libraries(auction_auth_bid_tests PRIVATE auction_http auction_database)
+    add_dependencies(auction_auth_bid_tests auction_resources)
+    add_test(NAME auth_and_bidding COMMAND auction_auth_bid_tests)
+    set_tests_properties(auth_and_bidding PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
 endif()

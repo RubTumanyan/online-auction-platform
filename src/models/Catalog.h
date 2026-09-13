@@ -25,6 +25,7 @@ struct Lot
     std::string createdAt;
     std::string endTime;
     std::string status;
+    std::optional<std::string> highestBidderUsername;
 };
 
 struct LotQuery

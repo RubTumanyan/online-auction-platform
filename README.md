@@ -2,15 +2,26 @@
 
 Internship assignment. Deadline: **September 14, 2026**.
 
-## Implemented scope (Phases 1 and 2)
+## Implemented scope (Phases 1–5)
 
 Phase 1 provides the C++20/Drogon server, CMake/CTest, a static home page, and
 `GET /api/health` returning HTTP 200 with JSON `{"status":"ok"}`.
 
 Phase 2 adds an automatically initialized SQLite database, a deterministic seed of
 10 categories and 1,000 active auctions, and 1,000 local Wikimedia Commons photographs.
-It intentionally does not add authentication, catalog APIs, bidding, WebSockets, auction
-closing, profiles, recommendations, or new frontend pages.
+
+Phase 3 adds the read-only catalog REST API: categories, paginated active lots with
+filtering/search/sorting, and individual lot details. It intentionally does not add
+authentication, bidding, WebSockets, auction closing, profiles, recommendations, or new
+frontend pages beyond the read-only catalog.
+
+Phase 4 adds a responsive vanilla HTML/CSS/JavaScript catalog and lot-details page.
+The frontend uses the Phase 3 API directly and includes URL-persisted search, category
+filtering, sorting, pagination, shared live countdowns, and loading/empty/error states.
+
+Phase 5 adds username/password authentication, expiring bearer sessions, atomic bid
+placement, bid history, and the minimum matching frontend controls. Real-time updates
+remain Phase 6 work.
 
 ## Windows prerequisites
 
@@ -76,6 +87,8 @@ In a second terminal:
 ```powershell
 curl.exe --fail --include http://127.0.0.1:8080/api/health
 curl.exe --fail --include http://127.0.0.1:8080/
+curl.exe --fail --include http://127.0.0.1:8080/api/categories
+curl.exe --fail --include "http://127.0.0.1:8080/api/lots?page=1&limit=20"
 ```
 
 Expect HTTP 200, `Content-Type: application/json`, and `{"status":"ok"}` from health
@@ -84,7 +97,7 @@ Expect HTTP 200, `Content-Type: application/json`, and `{"status":"ok"}` from he
 
 On first startup the server creates `runtime/auction.sqlite3` beside the executable,
 applies `database/schema.sql`, and inserts the deterministic seed in one transaction.
-Later starts detect schema version 1 and leave the existing data unchanged. To recreate
+Later starts migrate older databases to schema version 2 and leave existing data intact. To recreate
 the seed database in the normal debug build, stop the server and run:
 
 ```powershell
@@ -111,6 +124,146 @@ Runtime uploads, if Drogon creates its working directories, stay in `runtime/` b
 outside `public/` and under the ignored build directory.
 Only put publicly accessible frontend assets in `public/`.
 
+## Phase 3 catalog API
+
+All money values are integer cents and all timestamps are UTC. Successful responses use
+JSON. Validation failures use HTTP 400 with an `{"error":"..."}` body, and a missing lot
+uses HTTP 404 with `{"error":"Lot not found"}`.
+
+```text
+GET /api/categories
+GET /api/lots
+GET /api/lots/{id}
+```
+
+`GET /api/lots` returns only rows whose status is `active` and whose end time is still in
+the future. Its optional parameters are:
+
+| Parameter | Meaning | Default |
+|---|---|---|
+| `page` | Positive page number | `1` |
+| `limit` | Rows per page, from 1 through 100 | `20` |
+| `category_id` | Existing positive category ID | all categories |
+| `search` | Case-insensitive title substring, at most 200 characters | no search |
+| `sort_by` | `current_price`, `end_time`, or `title` | `end_time` |
+| `order` | `asc` or `desc` | `asc` |
+
+Values are passed to SQLite with prepared-statement parameters. The sort column and
+direction cannot be parameters, so the controller validates both against the allow-list
+above before the repository builds the `ORDER BY` clause.
+
+With the server running, these commands exercise every endpoint and the main query
+features:
+
+```powershell
+curl.exe --fail --include http://127.0.0.1:8080/api/categories
+curl.exe --fail --include "http://127.0.0.1:8080/api/lots?page=1&limit=20"
+curl.exe --fail --include "http://127.0.0.1:8080/api/lots?category_id=2&limit=10"
+curl.exe --fail --include "http://127.0.0.1:8080/api/lots?search=digital"
+curl.exe --fail --include "http://127.0.0.1:8080/api/lots?sort_by=current_price&order=desc"
+curl.exe --fail --include "http://127.0.0.1:8080/api/lots?sort_by=end_time&order=asc"
+curl.exe --fail --include http://127.0.0.1:8080/api/lots/101
+curl.exe --include http://127.0.0.1:8080/api/lots/9999
+curl.exe --include "http://127.0.0.1:8080/api/lots?limit=101"
+```
+
+The final two commands intentionally return 404 and 400, so they omit `--fail` to show
+the JSON error bodies.
+
+## Phase 4 frontend catalog
+
+Start the server and open <http://127.0.0.1:8080/>. The catalog loads categories and lots
+from the API; no product data is hardcoded in JavaScript. Selecting a card opens
+`/lot.html?id={id}`, which loads that lot from `GET /api/lots/{id}`.
+
+Catalog filters are stored in the address bar, so refreshing or sharing the URL preserves
+the current page, search, category, and sort order. Search requests are debounced. A single
+one-second timer updates all visible card countdowns, and the details page cleans up its
+timer when navigation occurs.
+
+Frontend files:
+
+```text
+public/index.html   Catalog structure, controls, states and accessible labels
+public/catalog.js   API integration, URL state, cards, pagination and shared countdown
+public/lot.html     Separate lot-details page and its failure states
+public/lot.js       Lot lookup, safe rendering, countdown, bids and history
+public/styles.css   Responsive auction-house visual design and reduced-motion support
+```
+
+Manual testing checklist:
+
+- Open `/` and confirm 20 live lot cards and all 10 category choices appear.
+- Search for `digital`, choose a category, and try each sort option.
+- Use Previous/Next and refresh to confirm the address-bar state is preserved.
+- Open a lot card, refresh its details URL, and return to the catalog.
+- Try `/lot.html?id=9999` and `/lot.html?id=invalid` for friendly error states.
+- Resize to desktop, tablet, and mobile widths and navigate controls with the keyboard.
+- Confirm the browser console has no JavaScript errors.
+
+Real-time bid updates are not implemented yet.
+
+## Phase 5 authentication and bidding
+
+Demo accounts are created idempotently when the server starts:
+
+| Username | Password |
+|---|---|
+| `alice` | `Alice123!` |
+| `bob` | `Bob123!` |
+
+Passwords are stored as salted PBKDF2-HMAC-SHA256 hashes with 210,000 iterations using
+OpenSSL. Sessions expire after 24 hours. The client receives a random 256-bit bearer token,
+while SQLite stores only its SHA-256 hash. The requested browser client keeps the raw token
+in `localStorage`; production deployment should additionally use HTTPS and a strict CSP.
+
+Schema version 2 adds a case-insensitive unique `username` to `users` and an `auth_tokens`
+table containing the token hash, user foreign key, creation time, and expiry. Existing
+`bids` rows store the auction/user foreign keys, integer-cent amount, and UTC creation time.
+Bid placement uses `BEGIN IMMEDIATE`, validates the current price while holding SQLite's
+write lock, inserts the bid, and updates the auction in one transaction.
+
+Authentication endpoints:
+
+```text
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+POST /api/auth/logout
+```
+
+Bidding endpoints:
+
+```text
+GET  /api/lots/{id}/bids?page=1&pageSize=10
+POST /api/lots/{id}/bids
+```
+
+Windows examples with the server running:
+
+```powershell
+curl.exe --include -H "Content-Type: application/json" -d '{"username":"ruben","password":"StrongPassword123!"}' http://127.0.0.1:8080/api/auth/register
+$login = curl.exe --silent -H "Content-Type: application/json" -d '{"username":"alice","password":"Alice123!"}' http://127.0.0.1:8080/api/auth/login | ConvertFrom-Json
+$token = $login.token
+curl.exe --include -H "Authorization: Bearer $token" http://127.0.0.1:8080/api/auth/me
+curl.exe --include "http://127.0.0.1:8080/api/lots/1/bids?page=1&pageSize=10"
+curl.exe --include -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"amount":3175}' http://127.0.0.1:8080/api/lots/1/bids
+curl.exe --include -X POST -H "Authorization: Bearer $token" http://127.0.0.1:8080/api/auth/logout
+```
+
+Amounts are integer cents at the API boundary. The UI displays USD and converts an entered
+dollar amount to cents before submitting it. Successful bids refresh the displayed price
+and recent history; Phase 6 will add WebSocket or SSE updates across browser sessions.
+
+Manual Phase 5 flow:
+
+- Register a new username in the header dialog, then log out and log back in.
+- Open an active lot and submit at least the displayed minimum next bid.
+- Confirm the current price and public recent-bid history update immediately.
+- Try bidding below the minimum and bidding again while already highest; both show the
+  server's validation message without modifying the bid history.
+- Log out and confirm the bid form is replaced by the login prompt.
+
 ## Phase 2 image import
 
 The application never downloads images at runtime. The one-time importer uses only the
@@ -134,10 +287,16 @@ Image attribution is in `database/image_credits.csv`; detailed provenance and ch
 
 `ctest --preset debug` starts and stops its own Drogon server. No manually running server is required.
 It tests the real health route (HTTP status, JSON content type, exact JSON members) and
-checks that the static home page exactly matches `public/index.html`. Database tests cover
+checks that the static home page exactly matches `public/index.html` and that the details,
+stylesheet, and JavaScript assets are served. Catalog HTTP tests
+cover categories, active-only default pagination, category filtering, case-insensitive
+title search, price/end-time sorting, query validation, lot details, 404 handling, and
+serving a lot's local image. Database tests cover
 atomic initialization, schema constraints, foreign keys, prepared values, deterministic
 idempotent seeding, disk reopen, exact seed counts, indexes, integrity, and all local image
-files/checksums. CTest starts in an unrelated directory and uses the same resource locator.
+files/checksums. Authentication/bidding tests cover registration conflicts, login failure,
+valid and invalid sessions, authenticated bidding, minimum bids, expired/missing lots,
+public bid history, detail-price updates, and logout. CTest starts in an unrelated directory and uses the same resource locator.
 Tests load the example config but use loopback port **18849**, which must be free.
 CTest enforces a 30-second timeout; individual HTTP requests have a five-second timeout.
 To see individual Drogon assertions:
@@ -170,30 +329,38 @@ curl --fail --include http://127.0.0.1:8080/api/health
 
 ```text
 config/config.example.json     Listener, static document root, UTC logging
-public/index.html              Minimal static frontend
+public/index.html              Responsive API-backed catalog page
+public/lot.html                API-backed lot-details page
+public/styles.css              Shared responsive catalog styling
+public/catalog.js              Catalog state, API rendering and countdowns
+public/lot.js                  Lot details, countdown, bid form and history
+public/auth.js                 Shared login/register/session UI
 src/main.cpp                   Load config and run Drogon's event loop
 src/runtime/                   Locate configuration and assets beside the executable
-src/controllers/               Thin HTTP request/response handlers
+src/controllers/               Thin health, catalog, authentication and bid handlers
 src/database/                  SQLite RAII wrapper, prepared statements and initialization
-database/schema.sql            Strict schema and query indexes
+database/schema.sql            Base schema and query indexes
+database/migrations/           Versioned authentication/session migration
 database/seed_*.json           Deterministic categories and auctions
 database/image_manifest.json   Local-image provenance, dimensions and checksums
 database/image_credits.csv     Human-readable Wikimedia author/license attribution
 tools/import_commons_images.py Resumable one-time image importer and verifier
 public/images/products/        One local photograph per seeded auction
-src/services/                  Reserved for later business logic
-src/repositories/              Reserved for later prepared database operations
-src/models/                    Reserved for application data
+src/services/                  Catalog, authentication and transactional bid logic
+src/security/                  PBKDF2 password and random-token helpers
+src/repositories/              Prepared catalog queries and result mapping
+src/models/                    Catalog query and response-domain structures
 src/websocket/                 Reserved for subscriptions and broadcasts
 tests/HttpTests.cpp            Drogon HTTP integration tests
 tests/DatabaseTests.cpp        SQLite, seed, constraint and image-integrity tests
+tests/CatalogHttpTests.cpp      Catalog API and static product-image integration tests
+tests/AuthBidHttpTests.cpp      Authentication and bidding HTTP integration tests
 CMakeLists.txt                 C++20 targets, Drogon linkage, CTest registration
 CMakePresets.json              Portable debug configure/build/test commands
 vcpkg.json                     Pinned manifest with Drogon ORM and SQLite features
 ```
 
-The remaining reserved directories contain only `.gitkeep` placeholders. Vanilla CSS and
-JavaScript ES modules will be added under `public/` when frontend functionality begins.
+The remaining reserved directories contain only `.gitkeep` placeholders.
 
 CMake reads the preset and loads the vcpkg toolchain before configuring the compiler. vcpkg resolves
 Drogon and its transitive dependencies from the manifest. `find_package(Drogon CONFIG REQUIRED)` exposes
@@ -209,6 +376,7 @@ Keep controllers thin and business logic in services. Use prepared statements, t
 integer cents, UTC timestamps, secure password hashing, pagination, and filtering/sorting indexes.
 The target dataset is approximately 1,000 products. Keep Windows/MSVC and Linux support.
 Do not commit secrets, generated builds, or local configuration. No automatic commits or pushes.
+Real-time WebSocket/SSE updates remain Phase 6 work.
 
 ## References
 
@@ -238,8 +406,38 @@ and the 1,000-image integrity test. The server created
 `build/phase2-clean/runtime/auction.sqlite3`; it contained schema version 1, 10 categories,
 1,000 auctions, and 1,000 distinct local image paths.
 
+## Phase 3 clean verification
+
+Use a new, unused build directory after initializing Developer PowerShell as shown above:
+
+```powershell
+cmake --preset debug -B build/phase3-clean
+cmake --build build/phase3-clean --parallel
+ctest --test-dir build/phase3-clean --output-on-failure --verbose
+.\build\phase3-clean\auction_server.exe
+```
+
+In another terminal, run the commands under **Phase 3 catalog API**. The catalog test
+starts its own server on loopback port **18850**, creates an isolated temporary database,
+and removes that database when the test finishes.
+
 The September 12, 2026 audit configured a new `build/phase1-clean` with MSVC,
 built both executables, and passed CTest (13 assertions in two test cases).
 Linux and macOS resource discovery is implemented but was not executed on this Windows host.
 The audit checks IDE-equivalent working directories; clicking Visual Studio's Start
 button itself requires a manual IDE check.
+
+## Phase 5 clean verification
+
+Use a fresh build directory so the result does not depend on an earlier phase's generated
+files or CMake cache:
+
+```powershell
+cmake --preset debug -B build/phase5-clean
+cmake --build build/phase5-clean --parallel
+ctest --test-dir build/phase5-clean --output-on-failure
+.\build\phase5-clean\auction_server.exe
+```
+
+The authentication/bidding integration test uses loopback port **18851** and an isolated
+temporary database. The temporary database is removed when the test finishes.

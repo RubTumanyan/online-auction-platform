@@ -103,10 +103,14 @@ std::optional<models::Lot> CatalogRepository::lotById(std::int64_t id) const
     database::Connection connection(databasePath_);
     auto statement = connection.prepare(
         "SELECT a.id,a.title,a.description,c.id,c.name,a.image_url,a.starting_price_cents,"
-        "a.current_price_cents,a.created_at,a.ends_at,a.status"
-        " FROM auctions a JOIN categories c ON c.id = a.category_id WHERE a.id = ?");
+        "a.current_price_cents,a.created_at,a.ends_at,a.status,u.username"
+        " FROM auctions a JOIN categories c ON c.id = a.category_id"
+        " LEFT JOIN users u ON u.id=a.current_winner_id WHERE a.id = ?");
     statement.bind(1, id);
     if (!statement.step()) return std::nullopt;
-    return readLot(statement);
+    auto lot = readLot(statement);
+    const auto bidder = statement.text(11);
+    if (!bidder.empty()) lot.highestBidderUsername = bidder;
+    return lot;
 }
 }

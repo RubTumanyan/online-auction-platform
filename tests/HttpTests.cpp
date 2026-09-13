@@ -3,6 +3,7 @@
 
 #include "runtime/RuntimePaths.h"
 
+#include <array>
 #include <fstream>
 #include <future>
 #include <iterator>
@@ -40,6 +41,29 @@ DROGON_TEST(StaticHomePage)
     const std::string expected((std::istreambuf_iterator<char>(page)),
                                std::istreambuf_iterator<char>());
     CHECK(response->body() == expected);
+}
+
+DROGON_TEST(StaticFrontendAssets)
+{
+    const std::array<std::pair<const char*, const char*>, 5> assets = {{
+        {"/lot.html", "text/html"},
+        {"/styles.css", "text/css"},
+        {"/catalog.js", "javascript"},
+        {"/lot.js", "javascript"},
+        {"/auth.js", "javascript"},
+    }};
+    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:18849");
+    for (const auto& [path, contentType] : assets)
+    {
+        auto request = drogon::HttpRequest::newHttpRequest();
+        request->setPath(path);
+        const auto [result, response] = client->sendRequest(request, 5.0);
+        REQUIRE(result == drogon::ReqResult::Ok);
+        REQUIRE(response != nullptr);
+        CHECK(response->statusCode() == drogon::k200OK);
+        CHECK(response->getHeader("content-type").find(contentType) != std::string::npos);
+        CHECK(!response->body().empty());
+    }
 }
 
 int main(int argc, char* argv[])

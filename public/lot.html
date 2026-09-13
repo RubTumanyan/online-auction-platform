@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="View auction lot details on Aurelian Auctions.">
+    <meta name="theme-color" content="#101827">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101827'/%3E%3Cpath d='M18 46 30 16h5l12 30h-7l-2.5-7H27L24.5 46Zm11-13h6.5L32.3 23Z' fill='%23d7a84b'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/styles.css">
+    <title>Lot details — Aurelian Auctions</title>
+    <script src="/auth.js" defer></script><script src="/lot.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#lot-details">Skip to lot details</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Aurelian Auctions home"><span class="brand-mark" aria-hidden="true">A</span><span>Aurelian <b>Auctions</b></span></a>
+      <nav aria-label="Primary navigation"><a class="nav-link" href="/">Live catalog</a><a class="nav-link" href="/api/health">API status</a></nav>
+      <div class="auth-controls"><span id="auth-username" hidden></span><button class="header-button" id="auth-open" type="button">Login / Register</button><button class="header-button" id="auth-logout" type="button" hidden>Logout</button></div>
+    </header>
+    <main class="detail-main" id="lot-details">
+      <a class="back-link" href="/"><span aria-hidden="true">←</span> Back to catalog</a>
+      <div class="detail-loading" id="detail-loading" aria-label="Loading lot details">
+        <div class="detail-image-skeleton"></div>
+        <div class="detail-copy-skeleton"><span></span><span></span><span></span><span></span></div>
+      </div>
+      <section class="state-panel detail-state" id="detail-error" role="alert" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h1 id="detail-error-title">Lot unavailable</h1>
+        <p id="detail-error-message">We couldn’t find this auction lot.</p>
+        <a class="button button-primary" href="/">Browse live lots</a>
+      </section>
+      <article class="lot-detail" id="detail-content" hidden>
+        <div class="detail-media">
+          <img id="detail-image" src="" alt="">
+          <div class="image-fallback" id="detail-image-fallback" hidden>Image unavailable</div>
+        </div>
+        <div class="detail-copy">
+          <p class="eyebrow" id="detail-category"></p>
+          <h1 id="detail-title"></h1>
+          <div class="detail-status-row"><span class="status-pill" id="detail-status">Live auction</span><span id="detail-lot-number"></span></div>
+          <div class="bid-panel">
+            <div><span class="meta-label">Current price</span><strong class="detail-price" id="detail-price"></strong></div>
+            <div><span class="meta-label">Time remaining</span><strong class="detail-countdown" id="detail-countdown"></strong></div>
+          </div>
+          <dl class="detail-metadata">
+            <div><dt>Minimum step</dt><dd id="detail-step"></dd></div>
+            <div><dt>Auction ends</dt><dd id="detail-end-time"></dd></div>
+          </dl>
+          <div class="description-block"><h2>About this lot</h2><p id="detail-description"></p></div>
+          <section class="bidding-panel" aria-labelledby="bid-title">
+            <h2 id="bid-title">Place a bid</h2>
+            <p id="login-required">Log in to place a bid. <button class="text-button" id="bid-login" type="button">Login or register</button></p>
+            <form id="bid-form" hidden>
+              <label for="bid-amount">Your bid (USD)</label>
+              <div class="bid-input-row"><input id="bid-amount" name="amount" inputmode="decimal" placeholder="0.00" required><button class="button button-primary" type="submit">Place bid</button></div>
+              <p class="input-help" id="minimum-bid"></p>
+            </form>
+            <p class="form-message" id="bid-message" role="status"></p>
+          </section>
+          <section class="bid-history" aria-labelledby="history-title"><h2 id="history-title">Recent bids</h2><p id="history-state">Loading bid history…</p><ol id="bid-list"></ol></section>
+        </div>
+      </article>
+    </main>
+    <footer><p>Aurelian Auctions</p><p>Secure demo bidding · Real-time updates arrive in Phase 6.</p></footer>
+    <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
+      <button class="dialog-close" id="auth-close" type="button" aria-label="Close">×</button>
+      <p class="eyebrow">Member access</p><h2 id="auth-title">Login</h2>
+      <form id="auth-form"><label for="auth-name">Username</label><input id="auth-name" name="username" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+"><label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128"><p class="form-message" id="auth-message" role="alert"></p><button class="button button-primary" id="auth-submit" type="submit">Login</button></form>
+      <button class="text-button" id="auth-switch" type="button">Need an account? Register</button>
+    </dialog>
+  </body>
+</html>

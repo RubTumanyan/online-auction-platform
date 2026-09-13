@@ -73,6 +73,7 @@ Json::Value lotJson(const models::Lot& lot, bool detailed)
     result["current_price"] = Json::Int64(lot.currentPriceCents);
     result["minimum_step"] = Json::Int64(kMinimumStepCents);
     if (detailed) result["created_at"] = lot.createdAt;
+    if (detailed && lot.highestBidderUsername) result["highest_bidder_username"] = *lot.highestBidderUsername;
     result["end_time"] = lot.endTime;
     result["status"] = lot.status;
     return result;

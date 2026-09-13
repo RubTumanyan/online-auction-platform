@@ -177,6 +177,7 @@ std::int64_t Connection::scalar(const std::string& sql)
     if (!statement.step()) throw std::runtime_error("SQL scalar query returned no row");
     return statement.integer(0);
 }
+std::int64_t Connection::lastInsertRowId() const { return sqlite3_last_insert_rowid(connection_.get()); }
 void Connection::executeScript(const std::string& sql)
 {
     const char* cursor = sql.c_str();
@@ -201,14 +202,21 @@ void initialize(Connection& connection, const std::filesystem::path& dataDirecto
     connection.execute("BEGIN IMMEDIATE");
     try
     {
-        const auto version = connection.scalar("PRAGMA user_version");
+        auto version = connection.scalar("PRAGMA user_version");
         if (version == 0)
         {
             connection.executeScript(readFile(dataDirectory / "schema.sql"));
             seed(connection, dataDirectory);
             connection.execute("PRAGMA user_version = 1");
+            version = 1;
         }
-        else if (version != 1)
+        if (version == 1)
+        {
+            connection.executeScript(readFile(dataDirectory / "migrations" / "002_auth_bidding.sql"));
+            connection.execute("PRAGMA user_version = 2");
+            version = 2;
+        }
+        if (version != 2)
         {
             throw std::runtime_error("Unsupported database version: " + std::to_string(version));
         }

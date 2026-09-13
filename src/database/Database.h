@@ -44,12 +44,13 @@ class Connection final
     void execute(const std::string& sql);
     void executeScript(const std::string& sql);
     std::int64_t scalar(const std::string& sql);
+    std::int64_t lastInsertRowId() const;
 
   private:
     struct Close { void operator()(sqlite3* connection) const; };
     std::unique_ptr<sqlite3, Close> connection_;
 };
 
-// Uses a versioned, atomic schema + seed transaction. Existing databases are not reseeded.
+// Uses versioned, atomic schema migrations. Existing databases are never reseeded.
 void initialize(Connection& connection, const std::filesystem::path& dataDirectory);
 }

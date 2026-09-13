@@ -2,6 +2,7 @@
 
 #include "runtime/RuntimePaths.h"
 #include "database/Database.h"
+#include "services/AuthBidService.h"
 
 #include <exception>
 #include <iostream>
@@ -23,6 +24,7 @@ int main(int argc, char* argv[])
             databaseConfig.get("path", "runtime/auction.sqlite3").asString());
         auction::database::Connection database(databasePath);
         auction::database::initialize(database, "database");
+        auction::services::AuthService(databasePath).ensureDemoUsers();
         std::cout << "Database ready: " << std::filesystem::absolute(databasePath).string() << std::endl;
         drogon::app().run();
     }

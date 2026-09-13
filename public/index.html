@@ -3,13 +3,107 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Online Auction Platform</title>
+    <meta name="description" content="Browse active lots in the Aurelian online auction catalog.">
+    <meta name="theme-color" content="#101827">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101827'/%3E%3Cpath d='M18 46 30 16h5l12 30h-7l-2.5-7H27L24.5 46Zm11-13h6.5L32.3 23Z' fill='%23d7a84b'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/styles.css">
+    <title>Aurelian Auctions — Live catalog</title>
+    <script src="/catalog.js" defer></script>
+    <script src="/auth.js" defer></script>
   </head>
   <body>
-    <main>
-      <h1>Online Auction Platform</h1>
-      <p>Phase 1: project scaffold.</p>
-      <p><a href="/api/health">Check server health</a></p>
+    <a class="skip-link" href="#catalog">Skip to catalog</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Aurelian Auctions home">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span>Aurelian <b>Auctions</b></span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a class="nav-link active" href="/" aria-current="page">Live catalog</a>
+        <a class="nav-link" href="/api/health">API status</a>
+      </nav>
+      <div class="auth-controls">
+        <span id="auth-username" hidden></span>
+        <button class="header-button" id="auth-open" type="button">Login / Register</button>
+        <button class="header-button" id="auth-logout" type="button" hidden>Logout</button>
+      </div>
+    </header>
+    <main id="catalog">
+      <section class="catalog-intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Curated lots · closing daily</p>
+          <h1 id="page-title">Find something worth winning.</h1>
+        </div>
+        <p class="intro-copy">Explore one-of-a-kind pieces across ten collections. Every lot is live, local, and ready for a closer look.</p>
+      </section>
+      <section class="catalog-shell" aria-label="Auction catalog">
+        <form class="catalog-controls" id="catalog-controls" role="search">
+          <div class="field search-field">
+            <label for="search">Search lots</label>
+            <div class="input-wrap">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"/></svg>
+              <input id="search" name="search" type="search" placeholder="Search by title" autocomplete="off" maxlength="200">
+            </div>
+          </div>
+          <div class="field">
+            <label for="category">Category</label>
+            <select id="category" name="category_id">
+              <option value="">All categories</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sort">Sort by</label>
+            <select id="sort" name="sort">
+              <option value="end_time:asc">Ending soonest</option>
+              <option value="end_time:desc">Ending latest</option>
+              <option value="current_price:asc">Price: low to high</option>
+              <option value="current_price:desc">Price: high to low</option>
+            </select>
+          </div>
+        </form>
+        <div class="catalog-summary">
+          <p id="result-count" aria-live="polite">Loading live lots…</p>
+          <span class="live-label"><span aria-hidden="true"></span> Live auctions</span>
+        </div>
+        <div class="notice" id="category-notice" role="status" hidden></div>
+        <div class="loading-grid" id="loading-state" aria-label="Loading auction lots">
+          <div class="skeleton-card"></div><div class="skeleton-card"></div>
+          <div class="skeleton-card"></div><div class="skeleton-card"></div>
+        </div>
+        <section class="state-panel" id="error-state" role="alert" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>We couldn’t load the catalog</h2>
+          <p id="error-message">Check your connection and try again.</p>
+          <button class="button button-primary" id="retry-button" type="button">Try again</button>
+        </section>
+        <section class="state-panel" id="empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">0</span>
+          <h2>No matching lots</h2>
+          <p>Try another search or clear the current filters.</p>
+          <button class="button button-secondary" id="clear-button" type="button">Clear filters</button>
+        </section>
+        <div class="lot-grid" id="lot-grid"></div>
+        <nav class="pagination" id="pagination" aria-label="Catalog pages" hidden>
+          <button class="button button-secondary" id="previous-page" type="button"><span aria-hidden="true">←</span> Previous</button>
+          <p id="page-information">Page 1 of 1</p>
+          <button class="button button-secondary" id="next-page" type="button">Next <span aria-hidden="true">→</span></button>
+        </nav>
+      </section>
     </main>
+    <footer>
+      <p>Aurelian Auctions</p>
+      <p>Secure demo bidding · Real-time updates arrive in Phase 6.</p>
+    </footer>
+    <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
+      <button class="dialog-close" id="auth-close" type="button" aria-label="Close">×</button>
+      <p class="eyebrow">Member access</p><h2 id="auth-title">Login</h2>
+      <form id="auth-form">
+        <label for="auth-name">Username</label><input id="auth-name" name="username" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">
+        <label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128">
+        <p class="form-message" id="auth-message" role="alert"></p>
+        <button class="button button-primary" id="auth-submit" type="submit">Login</button>
+      </form>
+      <button class="text-button" id="auth-switch" type="button">Need an account? Register</button>
+    </dialog>
   </body>
 </html>
