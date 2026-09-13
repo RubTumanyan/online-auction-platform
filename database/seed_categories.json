@@ -1,0 +1,302 @@
+[
+  {
+    "id": 1,
+    "name": "Clothing",
+    "slug": "clothing",
+    "products": [
+      "T-shirt",
+      "jeans",
+      "jacket",
+      "dress",
+      "sweater",
+      "coat",
+      "sneakers",
+      "boots",
+      "hat",
+      "scarf"
+    ],
+    "base_price_cents": 2500,
+    "commons_categories": [
+      "T-shirts",
+      "Jeans",
+      "Jackets",
+      "Dresses",
+      "Sweaters",
+      "Coats",
+      "Sneakers",
+      "Boots",
+      "Hats",
+      "Scarves"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Electronics",
+    "slug": "electronics",
+    "products": [
+      "digital camera",
+      "laptop",
+      "headphones",
+      "radio receiver",
+      "turntable",
+      "calculator",
+      "computer keyboard",
+      "computer mouse",
+      "mobile phone",
+      "loudspeaker"
+    ],
+    "base_price_cents": 8500,
+    "commons_categories": [
+      "Digital cameras",
+      "Laptops",
+      "Headphones",
+      "Radio receivers",
+      "Record players",
+      "Calculators",
+      "Computer keyboards",
+      "Computer mice",
+      "Mobile phones",
+      "Loudspeakers"
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Art",
+    "slug": "art",
+    "products": [
+      "bronze sculpture",
+      "ceramic vase",
+      "wood carving",
+      "glass sculpture",
+      "oil painting",
+      "watercolor painting",
+      "tapestry",
+      "mosaic",
+      "marble sculpture",
+      "pottery"
+    ],
+    "base_price_cents": 12000,
+    "commons_categories": [
+      "Bronze statuettes",
+      "Ceramic vases",
+      "Woodcarvings",
+      "Art glass",
+      "Paintings on easels",
+      "Watercolor paintings",
+      "Tapestries",
+      "Mosaic art",
+      "Marble busts",
+      "Art pottery"
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Antiques",
+    "slug": "antiques",
+    "products": [
+      "pocket watch",
+      "mantel clock",
+      "typewriter",
+      "oil lamp",
+      "candlestick",
+      "gramophone",
+      "antique furniture",
+      "porcelain plate",
+      "antique desk",
+      "silver teapot"
+    ],
+    "base_price_cents": 18000,
+    "commons_categories": [
+      "Pocket watches",
+      "Mantel clocks",
+      "Typewriters",
+      "Oil lamps",
+      "Candlesticks",
+      "Gramophones",
+      "Antique chairs",
+      "Porcelain plates",
+      "Antique desks",
+      "Silver teapots"
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Home & Garden",
+    "slug": "home-garden",
+    "products": [
+      "armchair",
+      "table lamp",
+      "watering can",
+      "garden tools",
+      "flower pot",
+      "coffee maker",
+      "teapot",
+      "dining chair",
+      "sewing machine",
+      "vacuum cleaner"
+    ],
+    "base_price_cents": 4500,
+    "commons_categories": [
+      "Armchairs",
+      "Table lamps",
+      "Watering cans",
+      "Garden tools",
+      "Flowerpots",
+      "Coffee makers",
+      "Teapots",
+      "Dining chairs",
+      "Sewing machines",
+      "Vacuum cleaners"
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Sports",
+    "slug": "sports",
+    "products": [
+      "tennis racket",
+      "baseball glove",
+      "football ball",
+      "basketball ball",
+      "golf club",
+      "skis",
+      "skateboard",
+      "ice skates",
+      "bicycle helmet",
+      "dumbbell"
+    ],
+    "base_price_cents": 5500,
+    "commons_categories": [
+      "Tennis rackets",
+      "Baseball gloves",
+      "Association football balls",
+      "Basketballs",
+      "Golf clubs",
+      "Skis",
+      "Skateboards",
+      "Ice skates",
+      "Bicycle helmets",
+      "Dumbbells"
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Books",
+    "slug": "books",
+    "products": [
+      "book binding",
+      "antique book",
+      "hardcover book",
+      "illustrated book",
+      "dictionary book",
+      "atlas book",
+      "cookbook",
+      "bound book",
+      "book cover",
+      "printed book"
+    ],
+    "base_price_cents": 1800,
+    "commons_categories": [
+      "Bookbindings",
+      "Antiquarian books",
+      "Hardcover books",
+      "Illustrated books",
+      "Dictionaries",
+      "Atlases",
+      "Cookbooks",
+      "Bound books",
+      "Book covers",
+      "Books"
+    ]
+  },
+  {
+    "id": 8,
+    "name": "Jewelry",
+    "slug": "jewelry",
+    "products": [
+      "finger ring",
+      "necklace",
+      "bracelet",
+      "earrings",
+      "brooch",
+      "pendant jewelry",
+      "cufflinks",
+      "gold ring",
+      "silver necklace",
+      "bead necklace"
+    ],
+    "base_price_cents": 9500,
+    "commons_categories": [
+      "Finger rings",
+      "Necklaces",
+      "Bracelets",
+      "Earrings",
+      "Brooches",
+      "Pendants",
+      "Cufflinks",
+      "Gold rings",
+      "Silver necklaces",
+      "Beaded necklaces"
+    ]
+  },
+  {
+    "id": 9,
+    "name": "Collectibles",
+    "slug": "collectibles",
+    "products": [
+      "model car",
+      "toy train",
+      "teddy bear",
+      "vintage toy",
+      "coin collection",
+      "postage stamp",
+      "vinyl record",
+      "model airplane",
+      "toy robot",
+      "action figure"
+    ],
+    "base_price_cents": 3500,
+    "commons_categories": [
+      "Model cars",
+      "Toy trains",
+      "Teddy bears",
+      "Antique toys",
+      "Coin collections",
+      "Postage stamps",
+      "Vinyl records",
+      "Model aircraft",
+      "Toy robots",
+      "Action figures"
+    ]
+  },
+  {
+    "id": 10,
+    "name": "Vehicles",
+    "slug": "vehicles",
+    "products": [
+      "Toyota Corolla",
+      "Honda Civic",
+      "Volkswagen Golf",
+      "Ford Mustang",
+      "Fiat 500",
+      "Volvo 240",
+      "Mazda MX-5",
+      "Vespa scooter",
+      "Honda motorcycle",
+      "Peugeot 205"
+    ],
+    "base_price_cents": 250000,
+    "commons_categories": [
+      "Toyota Corolla",
+      "Honda Civic",
+      "Volkswagen Golf",
+      "Ford Mustang",
+      "Fiat 500",
+      "Volvo 240",
+      "Mazda MX-5",
+      "Vespa scooters",
+      "Honda motorcycles",
+      "Peugeot 205"
+    ]
+  }
+]

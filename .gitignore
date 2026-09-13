@@ -88,3 +88,13 @@ CMakeUserPresets.json
 CMakeSettings.json
 config/config.json
 runtime/
+
+# SQLite runtime databases and journals
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-*
+*.sqlite3-*
+*.db-*
+__pycache__/
+.venv/

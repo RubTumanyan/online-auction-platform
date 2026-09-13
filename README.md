@@ -2,12 +2,15 @@
 
 Internship assignment. Deadline: **September 14, 2026**.
 
-## Phase 1 scope
+## Implemented scope (Phases 1 and 2)
 
-C++20/Drogon server, SQLite-ready vcpkg dependencies, CMake/CTest, a static home page,
-and `GET /api/health` returning HTTP 200 with JSON `{"status":"ok"}`.
-No database is opened. Schema, seed data, authentication, auctions, bids, recommendations,
-and WebSocket functionality are reserved for later phases. There is no seed command in Phase 1.
+Phase 1 provides the C++20/Drogon server, CMake/CTest, a static home page, and
+`GET /api/health` returning HTTP 200 with JSON `{"status":"ok"}`.
+
+Phase 2 adds an automatically initialized SQLite database, a deterministic seed of
+10 categories and 1,000 active auctions, and 1,000 local Wikimedia Commons photographs.
+It intentionally does not add authentication, catalog APIs, bidding, WebSockets, auction
+closing, profiles, recommendations, or new frontend pages.
 
 ## Windows prerequisites
 
@@ -79,6 +82,19 @@ Expect HTTP 200, `Content-Type: application/json`, and `{"status":"ok"}` from he
 (JSON whitespace may vary). The root URL serves the HTML home page. Open
 <http://127.0.0.1:8080/> in a browser. Stop the server with **Ctrl+C**.
 
+On first startup the server creates `runtime/auction.sqlite3` beside the executable,
+applies `database/schema.sql`, and inserts the deterministic seed in one transaction.
+Later starts detect schema version 1 and leave the existing data unchanged. To recreate
+the seed database in the normal debug build, stop the server and run:
+
+```powershell
+Remove-Item -LiteralPath .\build\debug\runtime\auction.sqlite3 -ErrorAction SilentlyContinue
+.\build\debug\auction_server.exe
+```
+
+The SQLite file and its journal files are ignored by Git. A custom configuration may
+override `custom_config.database.path`; relative paths are resolved beside the executable.
+
 Optional local configuration:
 
 ```powershell
@@ -95,12 +111,33 @@ Runtime uploads, if Drogon creates its working directories, stay in `runtime/` b
 outside `public/` and under the ignored build directory.
 Only put publicly accessible frontend assets in `public/`.
 
+## Phase 2 image import
+
+The application never downloads images at runtime. The one-time importer uses only the
+Wikimedia Commons API, accepts freely reusable JPEG/PNG photographs, resizes them to fit
+480x320, rejects duplicate sources and image content, and records attribution and checksums.
+From the repository root on Windows:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r .\tools\requirements-images.txt
+.\.venv\Scripts\python.exe .\tools\import_commons_images.py
+.\.venv\Scripts\python.exe .\tools\import_commons_images.py --verify-only
+```
+
+Interrupted imports can be rerun: the manifest is checkpointed and accepted images are not
+downloaded twice. `--prepare-seed` regenerates deterministic auction JSON without downloading.
+Image attribution is in `database/image_credits.csv`; detailed provenance and checksums are in
+`database/image_manifest.json`.
+
 ## Tests
 
 `ctest --preset debug` starts and stops its own Drogon server. No manually running server is required.
 It tests the real health route (HTTP status, JSON content type, exact JSON members) and
-checks that the static home page exactly matches `public/index.html`. CTest starts in an
-unrelated directory and uses the same resource locator as the server.
+checks that the static home page exactly matches `public/index.html`. Database tests cover
+atomic initialization, schema constraints, foreign keys, prepared values, deterministic
+idempotent seeding, disk reopen, exact seed counts, indexes, integrity, and all local image
+files/checksums. CTest starts in an unrelated directory and uses the same resource locator.
 Tests load the example config but use loopback port **18849**, which must be free.
 CTest enforces a 30-second timeout; individual HTTP requests have a five-second timeout.
 To see individual Drogon assertions:
@@ -137,25 +174,34 @@ public/index.html              Minimal static frontend
 src/main.cpp                   Load config and run Drogon's event loop
 src/runtime/                   Locate configuration and assets beside the executable
 src/controllers/               Thin HTTP request/response handlers
-src/services/                  Reserved for business logic
-src/repositories/              Reserved for prepared database operations
+src/database/                  SQLite RAII wrapper, prepared statements and initialization
+database/schema.sql            Strict schema and query indexes
+database/seed_*.json           Deterministic categories and auctions
+database/image_manifest.json   Local-image provenance, dimensions and checksums
+database/image_credits.csv     Human-readable Wikimedia author/license attribution
+tools/import_commons_images.py Resumable one-time image importer and verifier
+public/images/products/        One local photograph per seeded auction
+src/services/                  Reserved for later business logic
+src/repositories/              Reserved for later prepared database operations
 src/models/                    Reserved for application data
 src/websocket/                 Reserved for subscriptions and broadcasts
 tests/HttpTests.cpp            Drogon HTTP integration tests
+tests/DatabaseTests.cpp        SQLite, seed, constraint and image-integrity tests
 CMakeLists.txt                 C++20 targets, Drogon linkage, CTest registration
 CMakePresets.json              Portable debug configure/build/test commands
 vcpkg.json                     Pinned manifest with Drogon ORM and SQLite features
 ```
 
-The reserved directories contain only `.gitkeep` placeholders. No later-phase functionality is implemented.
-Vanilla CSS and JavaScript ES modules will be added under `public/` when frontend functionality begins.
+The remaining reserved directories contain only `.gitkeep` placeholders. Vanilla CSS and
+JavaScript ES modules will be added under `public/` when frontend functionality begins.
 
 CMake reads the preset and loads the vcpkg toolchain before configuring the compiler. vcpkg resolves
 Drogon and its transitive dependencies from the manifest. `find_package(Drogon CONFIG REQUIRED)` exposes
 `Drogon::Drogon`, which supplies includes and libraries to the targets. The controller is linked as an
 object library into both executables so its automatic route registration is retained. `main.cpp` loads
 Drogon's JSON settings and runs its HTTP event loop; Drogon dispatches `/api/health` to the controller
-and serves the home page from `public/`. CTest runs the test executable using Drogon's testing tools.
+and serves the home page from `public/`. The database wrapper links SQLite directly and uses prepared
+statements for seeded values. CTest runs the test executables using Drogon's testing tools.
 
 ## Rules for later phases
 
@@ -170,19 +216,27 @@ Do not commit secrets, generated builds, or local configuration. No automatic co
 - [Drogon configuration reference](https://github.com/drogonframework/drogon/blob/master/config.example.json)
 - [Drogon testing tools](https://github.com/drogonframework/drogon/wiki/ENG-17-Testing-Framework)
 
-## Clean build verification
+## Phase 2 clean verification
 
 After initializing Developer PowerShell as above, use a new, unused directory:
 
 ```powershell
-cmake --preset debug -B build/phase1-clean
-cmake --build build/phase1-clean --parallel
-ctest --test-dir build/phase1-clean --output-on-failure --verbose
-.\build\phase1-clean\auction_server.exe
+cmake --preset debug -B build/phase2-clean
+cmake --build build/phase2-clean --parallel
+ctest --test-dir build/phase2-clean --output-on-failure --verbose
+.\.venv\Scripts\python.exe .\tools\import_commons_images.py --verify-only
+.\build\phase2-clean\auction_server.exe
 ```
 
 In another terminal, run the two `curl.exe` commands from **Run and verify**.
-Use another unused directory name if `build/phase1-clean` already exists.
+Use another unused directory name if `build/phase2-clean` already exists. The first
+configuration may take time because vcpkg builds the pinned C++ dependencies.
+
+The September 13, 2026 Phase 2 verification used a fresh `build/phase2-clean`, compiled
+with MSVC, and passed all three CTest entries: HTTP smoke tests, 53 database assertions,
+and the 1,000-image integrity test. The server created
+`build/phase2-clean/runtime/auction.sqlite3`; it contained schema version 1, 10 categories,
+1,000 auctions, and 1,000 distinct local image paths.
 
 The September 12, 2026 audit configured a new `build/phase1-clean` with MSVC,
 built both executables, and passed CTest (13 assertions in two test cases).

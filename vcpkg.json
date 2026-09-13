@@ -6,7 +6,11 @@
     {
       "name": "drogon",
       "default-features": false,
-      "features": ["orm", "sqlite3"]
-    }
+      "features": [
+        "orm",
+        "sqlite3"
+      ]
+    },
+    "sqlite3"
   ]
 }
