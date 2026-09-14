@@ -3,31 +3,49 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Browse active lots in the Aurelian online auction catalog.">
+    <meta name="description" content="Browse active lots in the QuickBid online auction catalog.">
     <meta name="theme-color" content="#101827">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101827'/%3E%3Cpath d='M18 46 30 16h5l12 30h-7l-2.5-7H27L24.5 46Zm11-13h6.5L32.3 23Z' fill='%23d7a84b'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101827'/%3E%3Ccircle cx='30' cy='28' r='13' fill='none' stroke='%23d7a84b' stroke-width='7'/%3E%3Cpath d='M39 37 51 49' stroke='%23d7a84b' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/styles.css">
-    <title>Aurelian Auctions — Live catalog</title>
+    <title>QuickBid — Live catalog</title>
     <script src="/catalog.js" defer></script>
     <script src="/auth.js" defer></script>
+    <script src="/health.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#catalog">Skip to catalog</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="Aurelian Auctions home">
-        <span class="brand-mark" aria-hidden="true">A</span>
-        <span>Aurelian <b>Auctions</b></span>
+      <a class="brand" href="/" aria-label="QuickBid home">
+        <span class="brand-mark" aria-hidden="true">Q</span>
+        <span>Quick<b>Bid</b></span>
       </a>
       <nav aria-label="Primary navigation">
         <a class="nav-link active" href="/" aria-current="page">Live catalog</a>
 
       </nav>
+      <p class="server-status" id="server-status" role="status"><span class="server-status-dot" aria-hidden="true"></span><span id="server-status-text">Checking…</span></p>
       <div class="auth-controls">
         <span id="auth-username" hidden></span>
         <button class="header-button" id="auth-open" type="button">Login / Register</button>
         <button class="header-button" id="auth-logout" type="button" hidden>Logout</button>
       </div>
     </header>
+    <section class="verification-panel" id="verification-panel" aria-labelledby="verify-title" hidden>
+      <div>
+        <h2 id="verify-title">Verify your email</h2>
+        <p>We sent a code to <strong id="verify-email-label"></strong>. Enter it below to activate bidding.</p>
+      </div>
+      <form id="verify-form">
+        <label for="verify-code">Verification code</label>
+        <input id="verify-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="verify-message" required>
+        <div class="verify-actions">
+          <button class="button button-primary" id="verify-submit" type="submit">Verify</button>
+          <button class="text-button" id="verify-resend" type="button">Resend code</button>
+        </div>
+        <p class="form-message" id="verify-message" role="status"></p>
+        <p class="input-help" id="verify-cooldown" hidden></p>
+      </form>
+    </section>
     <main id="catalog">
       <section class="catalog-intro" aria-labelledby="page-title">
         <div>
@@ -91,7 +109,7 @@
       </section>
     </main>
     <footer>
-      <p>Aurelian Auctions</p>
+      <p>QuickBid</p>
       <p>Demo auctions · Live bidding and automatic closing.</p>
     </footer>
     <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
@@ -99,6 +117,7 @@
       <p class="eyebrow">Member access</p><h2 id="auth-title">Login</h2>
       <form id="auth-form">
         <label for="auth-name">Username</label><input id="auth-name" name="username" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">
+        <label for="auth-email" id="auth-email-label" hidden>Email</label><input id="auth-email" name="email" type="email" autocomplete="email" required maxlength="254" hidden>
         <label for="auth-password">Password</label><input aria-describedby="auth-help" id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128">
         <p class="input-help" id="auth-help">Username: 3–30 letters, numbers or underscores. Password: 8–128 characters.</p><p class="form-message" id="auth-message" role="alert"></p>
         <button class="button button-primary" id="auth-submit" type="submit">Login</button>

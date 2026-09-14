@@ -4,16 +4,26 @@
 #include "database/Database.h"
 #include "runtime/RuntimePaths.h"
 #include "services/AuthBidService.h"
+#include "services/EmailDelivery.h"
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <thread>
+#include <tuple>
 
 namespace
 {
 constexpr auto kBaseUrl = "http://127.0.0.1:18851";
+
+ // Tests must never deliver real email: capture nothing, just swallow delivery.
+class NeverSendsEmail final : public auction::services::EmailSender
+{
+  public:
+    void sendVerificationCode(const std::string&, const std::string&) override {}
+};
 
 std::pair<drogon::ReqResult, drogon::HttpResponsePtr> request(
     drogon::HttpMethod method, const std::string& path,
@@ -32,6 +42,18 @@ std::pair<drogon::ReqResult, drogon::HttpResponsePtr> request(
     return client->sendRequest(value, 10.0);
 }
 
+std::pair<drogon::ReqResult, drogon::HttpResponsePtr> rawJsonRequest(
+    drogon::HttpMethod method, const std::string& path, const std::string& body,
+    const std::string& authorization = {})
+{
+    auto client = drogon::HttpClient::newHttpClient(kBaseUrl);
+    auto value = drogon::HttpRequest::newHttpRequest();
+    value->setMethod(method); value->setPath(path);
+    value->setContentTypeCode(drogon::CT_APPLICATION_JSON); value->setBody(body);
+    if (!authorization.empty()) value->addHeader("Authorization", authorization);
+    return client->sendRequest(value, 10.0);
+}
+
 Json::Value parse(const drogon::HttpResponsePtr& response)
 {
     const auto json = response->getJsonObject();
@@ -42,18 +64,59 @@ Json::Value parse(const drogon::HttpResponsePtr& response)
 
 DROGON_TEST(AuthenticationAndBidding)
 {
-    Json::Value registration; registration["username"] = "charlie_1"; registration["password"] = "StrongPassword123!";
+    for (const auto& [path, body, authorization] : {
+             std::tuple{"/api/auth/register", std::string{"{"}, std::string{}},
+             std::tuple{"/api/auth/register", std::string{R"({"username":42,"password":"StrongPassword123!"})"}, std::string{}},
+             std::tuple{"/api/auth/login", std::string{R"({"username":"alice"})"}, std::string{}},
+             std::tuple{"/api/lots/1/bids", std::string{R"({"amount":"3175"})"}, std::string{"Bearer invalid"}}})
+    {
+        const auto [result, response] = rawJsonRequest(drogon::Post, path, body, authorization);
+        REQUIRE(result == drogon::ReqResult::Ok); REQUIRE(response != nullptr);
+        CHECK(response->statusCode() == (authorization.empty() ? drogon::k400BadRequest
+                                                                : drogon::k401Unauthorized));
+        CHECK(!parse(response)["error"].asString().empty());
+    }
+
+    Json::Value registration;
+    registration["username"] = "charlie_1"; registration["email"] = "charlie_1@example.test";
+    registration["password"] = "StrongPassword123!";
     const auto [registerResult, registerResponse] = request(drogon::Post, "/api/auth/register", registration);
     REQUIRE(registerResult == drogon::ReqResult::Ok); REQUIRE(registerResponse != nullptr);
     CHECK(registerResponse->statusCode() == drogon::k201Created);
     const auto registered = parse(registerResponse);
     CHECK(registered["user"]["username"].asString() == "charlie_1");
+    CHECK(registered["user"]["email"].asString() == "charlie_1@example.test");
+    CHECK(registered["user"]["emailVerified"].asBool() == false);
+    CHECK(registered["emailDeliveryFailed"].asBool() == false);
     CHECK(registered["token"].asString().size() == 64);
     CHECK(!registered["user"].isMember("password_hash"));
 
     const auto [duplicateResult, duplicateResponse] = request(drogon::Post, "/api/auth/register", registration);
     REQUIRE(duplicateResult == drogon::ReqResult::Ok); REQUIRE(duplicateResponse != nullptr);
     CHECK(duplicateResponse->statusCode() == drogon::k409Conflict);
+    CHECK(parse(duplicateResponse)["error"].asString() == "Username already exists");
+
+    Json::Value emailDuplicate = registration; emailDuplicate["username"] = "charlie_2";
+    const auto [emailDuplicateResult, emailDuplicateResponse] = request(drogon::Post, "/api/auth/register", emailDuplicate);
+    REQUIRE(emailDuplicateResult == drogon::ReqResult::Ok); REQUIRE(emailDuplicateResponse != nullptr);
+    CHECK(emailDuplicateResponse->statusCode() == drogon::k409Conflict);
+    CHECK(parse(emailDuplicateResponse)["error"].asString() == "Email already exists");
+
+    Json::Value charlieLogin; charlieLogin["username"] = "charlie_1"; charlieLogin["password"] = "StrongPassword123!";
+    const auto [charlieLoginResult, charlieLoginResponse] = request(drogon::Post, "/api/auth/login", charlieLogin);
+    REQUIRE(charlieLoginResult == drogon::ReqResult::Ok); REQUIRE(charlieLoginResponse != nullptr);
+    CHECK(charlieLoginResponse->statusCode() == drogon::k200OK);
+    const auto charlieToken = parse(charlieLoginResponse)["token"].asString();
+    REQUIRE(!charlieToken.empty());
+    const auto [charlieMeResult, charlieMeResponse] = request(drogon::Get, "/api/auth/me", {}, charlieToken);
+    REQUIRE(charlieMeResult == drogon::ReqResult::Ok); REQUIRE(charlieMeResponse != nullptr);
+    CHECK(charlieMeResponse->statusCode() == drogon::k200OK);
+    CHECK(parse(charlieMeResponse)["emailVerified"].asBool() == false);
+    Json::Value charlieBid; charlieBid["amount"] = Json::Int64(3175);
+    const auto [unverifiedResult, unverifiedResponse] = request(drogon::Post, "/api/lots/2/bids", charlieBid, charlieToken);
+    REQUIRE(unverifiedResult == drogon::ReqResult::Ok); REQUIRE(unverifiedResponse != nullptr);
+    CHECK(unverifiedResponse->statusCode() == drogon::k403Forbidden);
+    CHECK(parse(unverifiedResponse)["error"].asString() == "Email verification is required before placing a bid");
 
     Json::Value login; login["username"] = "alice"; login["password"] = "Alice123!";
     const auto [loginResult, loginResponse] = request(drogon::Post, "/api/auth/login", login);
@@ -61,6 +124,16 @@ DROGON_TEST(AuthenticationAndBidding)
     CHECK(loginResponse->statusCode() == drogon::k200OK);
     const auto aliceToken = parse(loginResponse)["token"].asString();
     REQUIRE(!aliceToken.empty());
+
+    for (const auto& body : {std::string{R"({"amount":"3175"})"},
+                             std::string{R"({"amount":31.75})"}, std::string{"{"}})
+    {
+        const auto [result, response] = rawJsonRequest(
+            drogon::Post, "/api/lots/1/bids", body, "Bearer " + aliceToken);
+        REQUIRE(result == drogon::ReqResult::Ok); REQUIRE(response != nullptr);
+        CHECK(response->statusCode() == drogon::k400BadRequest);
+        CHECK(!parse(response)["error"].asString().empty());
+    }
 
     login["password"] = "wrong-password";
     const auto [badLoginResult, badLoginResponse] = request(drogon::Post, "/api/auth/login", login);
@@ -72,6 +145,7 @@ DROGON_TEST(AuthenticationAndBidding)
     REQUIRE(meResult == drogon::ReqResult::Ok); REQUIRE(meResponse != nullptr);
     CHECK(meResponse->statusCode() == drogon::k200OK);
     CHECK(parse(meResponse)["username"].asString() == "alice");
+    CHECK(parse(meResponse)["emailVerified"].asBool());
     const auto [badMeResult, badMeResponse] = request(drogon::Get, "/api/auth/me", {}, "invalid");
     REQUIRE(badMeResult == drogon::ReqResult::Ok); REQUIRE(badMeResponse != nullptr);
     CHECK(badMeResponse->statusCode() == drogon::k401Unauthorized);
@@ -94,7 +168,7 @@ DROGON_TEST(AuthenticationAndBidding)
     CHECK(ownHighestResponse->statusCode() == drogon::k409Conflict);
     CHECK(parse(ownHighestResponse)["error"].asString() == "You already have the highest bid");
 
-    bid["amount"] = Json::Int64(3500);
+    bid["amount"] = Json::Int64(3190);
     const auto [lowResult, lowResponse] = request(drogon::Post, "/api/lots/1/bids", bid, aliceToken);
     REQUIRE(lowResult == drogon::ReqResult::Ok); REQUIRE(lowResponse != nullptr);
     CHECK(lowResponse->statusCode() == drogon::k409Conflict);
@@ -140,6 +214,7 @@ int main(int argc, char* argv[])
         auction::database::initialize(database, "database");
         database.execute("UPDATE auctions SET status='closed',closed_at=ends_at WHERE id=1000");
     }
+    auction::services::installVerificationEmailSender(std::make_unique<NeverSendsEmail>());
     auction::services::AuthService(databasePath).ensureDemoUsers();
     drogon::app().loadConfigJson(config);
     std::thread server([] { drogon::app().run(); });

@@ -20,9 +20,11 @@ std::filesystem::path databasePath()
     return std::filesystem::path(std::u8string(value.begin(), value.end()));
 }
 
-drogon::HttpResponsePtr errorResponse(drogon::HttpStatusCode status, const std::string& message)
+drogon::HttpResponsePtr errorResponse(drogon::HttpStatusCode status, const std::string& message,
+                                      std::optional<int> retryAfterSeconds = std::nullopt)
 {
     Json::Value body; body["error"] = message;
+    if (retryAfterSeconds) body["retryAfterSeconds"] = *retryAfterSeconds;
     auto response = drogon::HttpResponse::newHttpJsonResponse(body); response->setStatusCode(status); return response;
 }
 
@@ -32,8 +34,11 @@ drogon::HttpStatusCode statusFor(services::ApiErrorKind kind)
     {
         case services::ApiErrorKind::invalid: return drogon::k400BadRequest;
         case services::ApiErrorKind::unauthorized: return drogon::k401Unauthorized;
+        case services::ApiErrorKind::forbidden: return drogon::k403Forbidden;
         case services::ApiErrorKind::conflict: return drogon::k409Conflict;
         case services::ApiErrorKind::notFound: return drogon::k404NotFound;
+        case services::ApiErrorKind::tooManyRequests: return drogon::k429TooManyRequests;
+        case services::ApiErrorKind::emailFailure: return drogon::k502BadGateway;
     }
     return drogon::k500InternalServerError;
 }
@@ -57,7 +62,12 @@ std::optional<int> queryInteger(const std::string& value, int fallback, int maxi
 
 Json::Value userJson(const models::User& user)
 {
-    Json::Value result; result["id"] = Json::Int64(user.id); result["username"] = user.username; return result;
+    Json::Value result;
+    result["id"] = Json::Int64(user.id);
+    result["username"] = user.username;
+    result["email"] = user.email;
+    result["emailVerified"] = user.emailVerified;
+    return result;
 }
 
 Json::Value bidJson(const models::Bid& bid)
@@ -72,7 +82,10 @@ template <typename Work>
 void handle(std::function<void(const drogon::HttpResponsePtr&)>& callback, Work&& work)
 {
     try { work(); }
-    catch (const services::ApiError& error) { callback(errorResponse(statusFor(error.kind()), error.what())); }
+    catch (const services::ApiError& error)
+    {
+        callback(errorResponse(statusFor(error.kind()), error.what(), error.retryAfterSeconds()));
+    }
     catch (const std::exception& error)
     {
         LOG_ERROR << "Authentication/bidding request failed: " << error.what();
@@ -93,10 +106,42 @@ void AuthBidController::registerUser(const drogon::HttpRequestPtr& request,
     std::function<void(const drogon::HttpResponsePtr&)>&& callback) const
 {
     handle(callback, [&] {
-        const auto [username, password] = credentials(request);
-        const auto result = services::AuthService(databasePath()).registerUser(username, password);
-        Json::Value body; body["user"] = userJson(result.user); body["token"] = result.token;
-        auto response = drogon::HttpResponse::newHttpJsonResponse(body); response->setStatusCode(drogon::k201Created); callback(response);
+        const auto body = request->getJsonObject();
+        if (!body || !(*body)["username"].isString() || !(*body)["email"].isString() || !(*body)["password"].isString())
+            throw services::ApiError(services::ApiErrorKind::invalid, "JSON username, email and password are required");
+        const auto result = services::AuthService(databasePath()).registerUser(
+            (*body)["username"].asString(), (*body)["email"].asString(), (*body)["password"].asString());
+        Json::Value responseBody;
+        responseBody["user"] = userJson(result.auth.user);
+        responseBody["token"] = result.auth.token;
+        responseBody["emailDeliveryFailed"] = result.emailDeliveryFailed;
+        auto response = drogon::HttpResponse::newHttpJsonResponse(responseBody); response->setStatusCode(drogon::k201Created); callback(response);
+    });
+}
+
+void AuthBidController::verifyEmail(const drogon::HttpRequestPtr& request,
+    std::function<void(const drogon::HttpResponsePtr&)>&& callback) const
+{
+    handle(callback, [&] {
+        const auto body = request->getJsonObject();
+        if (!body || !(*body)["email"].isString() || !(*body)["code"].isString())
+            throw services::ApiError(services::ApiErrorKind::invalid, "JSON email and code are required");
+        services::AuthService(databasePath()).verifyEmail((*body)["email"].asString(), (*body)["code"].asString());
+        Json::Value responseBody; responseBody["message"] = "Email verified";
+        callback(drogon::HttpResponse::newHttpJsonResponse(responseBody));
+    });
+}
+
+void AuthBidController::resendVerification(const drogon::HttpRequestPtr& request,
+    std::function<void(const drogon::HttpResponsePtr&)>&& callback) const
+{
+    handle(callback, [&] {
+        const auto body = request->getJsonObject();
+        if (!body || !(*body)["email"].isString())
+            throw services::ApiError(services::ApiErrorKind::invalid, "JSON email is required");
+        services::AuthService(databasePath()).resendVerification((*body)["email"].asString());
+        Json::Value responseBody; responseBody["message"] = "A new verification code was sent";
+        callback(drogon::HttpResponse::newHttpJsonResponse(responseBody));
     });
 }
 

@@ -1,20 +1,20 @@
-# Phase 7 demo guide
+# Phase 8 presentation guide
 
 ## Purpose and scope
 
-Aurelian Auctions demonstrates browsing approximately 1,000 photographed lots across
+QuickBid demonstrates browsing approximately 1,000 photographed lots across
 10 categories, authenticated bidding, and automatic winner selection. It is an internship
 demo with seeded inventory, not a payment or fulfillment service.
 
 ## Prepare the demo
 
 1. Follow the Windows prerequisites and Developer PowerShell setup in README.md.
-2. Build and run the checks shown in README.md's Phase 7 section.
+2. Complete the Phase 8 clean build and checks shown in README.md.
 3. Install/use Node 22.13+ for the optional demo helper and JavaScript tests.
 4. From the repository root, run:
 
 ```powershell
-node tools/demo.cjs start build/phase7-verified
+node tools/demo.cjs start build/phase8-clean
 ```
 
 Keep this terminal running. The helper uses port **18857**, writes a uniquely named
@@ -33,18 +33,22 @@ To demonstrate closing, use the exact command printed by the helper, choosing lo
 Reload both lot pages after changing the deadline so their displayed countdowns agree.
 Start a fresh demo for another run; closed auctions are intentionally not reopened.
 
-## Five-minute demo script
+Before presenting, close any older demo server, start a fresh helper session, confirm the
+catalog loads, and keep the printed close command ready in a second terminal. If port 18857
+is occupied, stop that earlier demo rather than editing the checked-in configuration live.
+
+## Six-minute demo script
 
 | Time | Show | Explain |
 | --- | --- | --- |
-| 0:00–0:40 | Catalog, category filter, title search, price sorting | The server filters and paginates the catalog; URLs retain the selection. |
-| 0:40–1:10 | Next/previous page, empty search, clear filters | Loading, empty, and retry states are part of the normal interface. |
-| 1:10–1:50 | Register a disposable user or log in to a demo account | Passwords are hashed; an expiring bearer session authorizes bids. |
-| 1:50–2:45 | Lot 1 in both sessions; Alice bids the minimum, then Bob raises it | Both pages update price, minimum bid, and history without reloading. Money is integer cents. |
-| 2:45–3:30 | Run the printed close command; reload both pages; watch the countdown | The server closes the auction and persists the highest bidder as winner. |
-| 3:30–4:00 | Both final results, hidden bidding form, reload the closed lot | The final result survives reload; late bids are rejected by the server. |
-| 4:00–4:30 | Narrow browser layout and logout | The same pages support mobile layouts and accessible labeled controls. |
-| 4:30–5:00 | Architecture and verification results | Explain transaction safety, test coverage, and demo limitations. |
+| 0:00–0:45 | Catalog, category filter, title search, price sorting | The server filters and paginates the catalog; URLs retain the selection. |
+| 0:45–1:20 | Next/previous page, empty search, clear filters | Loading, empty, and retry states are part of the normal interface. |
+| 1:20–2:00 | Register a disposable user or log in to a demo account | Passwords are hashed; an expiring bearer session authorizes bids. |
+| 2:00–3:10 | Lot 1 in both sessions; try one low bid, then let Alice bid the minimum and Bob raise it | Validation is server-side; both pages then update price, minimum, and history without reload. |
+| 3:10–4:10 | Run the printed close command; reload both pages once; watch the countdown | The database deadline is authoritative and the scheduler persists the winner. |
+| 4:10–4:50 | Both final results, hidden bidding form, reload the closed lot | The final result survives reload and late bids are rejected. |
+| 4:50–5:25 | Narrow browser layout, keyboard focus, and logout | Responsive layout, labeled controls, visible focus, and session revocation are demonstrated. |
+| 5:25–6:00 | Architecture, clean-build evidence, and limitations | Explain transaction safety, prepared SQL, two-client tests, and production boundaries. |
 
 ## Presentation outline
 
@@ -70,7 +74,7 @@ uses WebSockets only for updates. It ignores stale lower-price events and protec
 final result from delayed bid replies. Local countdowns are advisory; the database is
 authoritative. No browser timestamp can authorize a late bid.
 
-## Verification record — September 14, 2026
+## Phase 7 verification record — September 14, 2026
 
 - Fresh MSVC application build: `build/phase7-verified`; reused installed Phase 5 vcpkg
   dependencies. All six CTest suites passed (24.74 seconds).

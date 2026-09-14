@@ -3,30 +3,37 @@
 #include "models/AuthBid.h"
 
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
 namespace auction::services
 {
-enum class ApiErrorKind { invalid, unauthorized, conflict, notFound };
+enum class ApiErrorKind { invalid, unauthorized, forbidden, conflict, notFound, tooManyRequests, emailFailure };
 
 class ApiError final : public std::runtime_error
 {
   public:
-    ApiError(ApiErrorKind kind, const std::string& message) : std::runtime_error(message), kind_(kind) {}
+    ApiError(ApiErrorKind kind, const std::string& message, std::optional<int> retryAfterSeconds = std::nullopt)
+        : std::runtime_error(message), kind_(kind), retryAfterSeconds_(retryAfterSeconds) {}
     ApiErrorKind kind() const { return kind_; }
+    std::optional<int> retryAfterSeconds() const { return retryAfterSeconds_; }
   private:
     ApiErrorKind kind_;
+    std::optional<int> retryAfterSeconds_;
 };
 
 class AuthService final
 {
   public:
     explicit AuthService(std::filesystem::path databasePath);
-    models::AuthResult registerUser(const std::string& username, const std::string& password) const;
+    models::RegisterResult registerUser(const std::string& username, const std::string& email,
+                                        const std::string& password) const;
     models::AuthResult login(const std::string& username, const std::string& password) const;
     models::User authenticate(const std::string& authorization) const;
     void logout(const std::string& authorization) const;
+    void verifyEmail(const std::string& email, const std::string& code) const;
+    void resendVerification(const std::string& email) const;
     void ensureDemoUsers() const;
   private:
     std::filesystem::path databasePath_;

@@ -128,7 +128,7 @@ DROGON_TEST(LotDetailsAndStaticImage)
     const auto body = json(response);
     CHECK(body["id"].asInt64() == 101);
     CHECK(body["category"]["name"].asString() == "Electronics");
-    CHECK(body["minimum_step"].asInt64() == 500);
+    CHECK(body["minimum_step"].asInt64() == 20);
     CHECK(body["status"].asString() == "active");
     CHECK(body["endsAt"].asString() == body["end_time"].asString());
     CHECK(body["currentPrice"].asInt64() == body["current_price"].asInt64());

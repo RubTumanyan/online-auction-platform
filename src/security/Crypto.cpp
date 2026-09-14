@@ -103,4 +103,33 @@ std::string hashToken(const std::string& token)
     SHA256(reinterpret_cast<const unsigned char*>(token.data()), token.size(), digest.data());
     return hex(digest.data(), digest.size());
 }
+
+std::string generateVerificationCode()
+{
+    constexpr std::int64_t kRange = 1000000;
+    std::array<unsigned char, 4> bytes{};
+    if (RAND_bytes(bytes.data(), static_cast<int>(bytes.size())) != 1)
+        throw std::runtime_error("Secure random generation failed");
+    const std::uint32_t value = (static_cast<std::uint32_t>(bytes[0]) << 24) |
+                                (static_cast<std::uint32_t>(bytes[1]) << 16) |
+                                (static_cast<std::uint32_t>(bytes[2]) << 8) |
+                                static_cast<std::uint32_t>(bytes[3]);
+    char buffer[7];
+    const auto [end, error] = std::to_chars(buffer, buffer + sizeof(buffer), value % kRange);
+    if (error != std::errc{}) throw std::runtime_error("Verification code generation failed");
+    std::string result(6 - static_cast<std::size_t>(end - buffer), '0');
+    result.append(buffer, end);
+    return result;
+}
+
+std::string hashVerificationCode(const std::string& code)
+{
+    return hashToken(code);
+}
+
+bool timingSafeEqual(const std::string& left, const std::string& right)
+{
+    if (left.size() != right.size()) return false;
+    return CRYPTO_memcmp(left.data(), right.data(), left.size()) == 0;
+}
 }

@@ -6,8 +6,19 @@
 
 namespace auction::models
 {
-struct User { std::int64_t id; std::string username; };
+struct User
+{
+    std::int64_t id;
+    std::string username;
+    std::string email;
+    bool emailVerified = false;
+};
 struct AuthResult { User user; std::string token; };
+struct RegisterResult
+{
+    AuthResult auth;
+    bool emailDeliveryFailed = false;
+};
 struct Bid
 {
     std::int64_t id;

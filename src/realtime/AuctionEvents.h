@@ -11,7 +11,7 @@
 
 namespace auction::realtime
 {
-constexpr std::int64_t kMinimumBidStep = 500;
+constexpr std::int64_t kMinimumBidStep = auction::kMinimumBidStepCents;
 
 Json::Value bidUpdatedEvent(std::int64_t lotId, const models::PlacedBid& placed);
 Json::Value lotClosedEvent(const models::ClosedLot& closed);

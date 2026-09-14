@@ -45,12 +45,13 @@ DROGON_TEST(StaticHomePage)
 
 DROGON_TEST(StaticFrontendAssets)
 {
-    const std::array<std::pair<const char*, const char*>, 5> assets = {{
+const std::array<std::pair<const char*, const char*>, 6> assets = {{
         {"/lot.html", "text/html"},
         {"/styles.css", "text/css"},
         {"/catalog.js", "javascript"},
         {"/lot.js", "javascript"},
         {"/auth.js", "javascript"},
+        {"/health.js", "javascript"},
     }};
     auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:18849");
     for (const auto& [path, contentType] : assets)

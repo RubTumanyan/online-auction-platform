@@ -10,6 +10,8 @@ class AuthBidController final : public drogon::HttpController<AuthBidController>
     METHOD_LIST_BEGIN
     ADD_METHOD_TO(AuthBidController::registerUser, "/api/auth/register", drogon::Post);
     ADD_METHOD_TO(AuthBidController::login, "/api/auth/login", drogon::Post);
+    ADD_METHOD_TO(AuthBidController::verifyEmail, "/api/auth/verify-email", drogon::Post);
+    ADD_METHOD_TO(AuthBidController::resendVerification, "/api/auth/resend-verification", drogon::Post);
     ADD_METHOD_TO(AuthBidController::me, "/api/auth/me", drogon::Get);
     ADD_METHOD_TO(AuthBidController::logout, "/api/auth/logout", drogon::Post);
     ADD_METHOD_TO(AuthBidController::bids, "/api/lots/{1}/bids", drogon::Get);
@@ -18,6 +20,8 @@ class AuthBidController final : public drogon::HttpController<AuthBidController>
 
     void registerUser(const drogon::HttpRequestPtr&, std::function<void(const drogon::HttpResponsePtr&)>&&) const;
     void login(const drogon::HttpRequestPtr&, std::function<void(const drogon::HttpResponsePtr&)>&&) const;
+    void verifyEmail(const drogon::HttpRequestPtr&, std::function<void(const drogon::HttpResponsePtr&)>&&) const;
+    void resendVerification(const drogon::HttpRequestPtr&, std::function<void(const drogon::HttpResponsePtr&)>&&) const;
     void me(const drogon::HttpRequestPtr&, std::function<void(const drogon::HttpResponsePtr&)>&&) const;
     void logout(const drogon::HttpRequestPtr&, std::function<void(const drogon::HttpResponsePtr&)>&&) const;
     void bids(const drogon::HttpRequestPtr&, std::function<void(const drogon::HttpResponsePtr&)>&&, std::string id) const;

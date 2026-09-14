@@ -27,9 +27,10 @@ add_library(auction_http OBJECT
     src/realtime/AuctionEvents.cpp
     src/repositories/CatalogRepository.cpp
     src/runtime/RuntimePaths.cpp
-    src/services/AuthBidService.cpp
+src/services/AuthBidService.cpp
     src/services/AuctionCloseService.cpp
-    src/services/CatalogService.cpp)
+    src/services/CatalogService.cpp
+    src/services/EmailDelivery.cpp)
 target_include_directories(auction_http PUBLIC src)
 target_link_libraries(auction_http PUBLIC Drogon::Drogon auction_database)
 if(MSVC)
@@ -58,6 +59,7 @@ set(AUCTION_RESOURCE_FILES
     "${PROJECT_SOURCE_DIR}/database/schema.sql"
     "${PROJECT_SOURCE_DIR}/database/migrations/002_auth_bidding.sql"
     "${PROJECT_SOURCE_DIR}/database/migrations/003_auction_lifecycle.sql"
+    "${PROJECT_SOURCE_DIR}/database/migrations/004_email_verification.sql"
     "${PROJECT_SOURCE_DIR}/database/seed_auctions.json"
     "${PROJECT_SOURCE_DIR}/database/seed_categories.json")
 set(AUCTION_RESOURCE_STAMP "${CMAKE_CURRENT_BINARY_DIR}/auction-resources-$<CONFIG>.stamp")
@@ -112,6 +114,13 @@ if(BUILD_TESTING)
     add_dependencies(auction_auth_bid_tests auction_resources)
     add_test(NAME auth_and_bidding COMMAND auction_auth_bid_tests)
     set_tests_properties(auth_and_bidding PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
+
+    add_executable(auction_email_verification_tests tests/EmailVerificationHttpTests.cpp)
+    target_link_libraries(auction_email_verification_tests PRIVATE auction_http auction_database)
+    add_dependencies(auction_email_verification_tests auction_resources)
+    add_test(NAME email_verification COMMAND auction_email_verification_tests)
+    set_tests_properties(email_verification PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
 
     add_executable(auction_lifecycle_tests tests/AuctionLifecycleTests.cpp)

@@ -115,7 +115,7 @@ DROGON_TEST(AutomaticClosingAndRaceSafety)
     CHECK(bidEvent["type"].asString() == "bid_updated");
     CHECK(bidEvent["lotId"].asInt64() == 1);
     CHECK(bidEvent["currentPrice"].asInt64() == 3175);
-    CHECK(bidEvent["minimumNextBid"].asInt64() == 3675);
+    CHECK(bidEvent["minimumNextBid"].asInt64() == 3195);
     CHECK(bidEvent["bid"]["bidderUsername"].asString() == "alice");
     const auto closedEvent = auction::realtime::lotClosedEvent(noBidClosures[0]);
     CHECK(closedEvent["type"].asString() == "lot_closed");

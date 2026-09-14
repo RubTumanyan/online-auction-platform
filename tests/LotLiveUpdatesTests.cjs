@@ -14,7 +14,7 @@ const context = vm.createContext({
   window: { auctionAuth: { user: () => null } },
   location: { protocol: 'http:', host: 'localhost' },
   addEventListener() {}, setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
-  WebSocket: class { addEventListener(type, handler) { if (type === 'open') open = handler; } },
+  WebSocket: class { addEventListener(type, handler) { if (type === 'open') open = handler; } close() {} },
   fetch: async url => ({ ok: true, json: async () => url.includes('/bids?') ? { items: [], total: 0 } : snapshot }),
 });
 vm.runInContext(fs.readFileSync('public/lot.js', 'utf8').replace(/loadLot\(\);\s*$/, ''), context);
@@ -25,8 +25,10 @@ const run = code => vm.runInContext(code, context);
   assert.equal(run('currentLot.current_price'), 5000, 'Older broadcasts cannot reduce price');
   run("connectLiveUpdates()");
   snapshot = { status: 'active', current_price: 6000, minimum_step: 500 };
+  run('reconnectAttempts=4');
   await open();
   assert.equal(run('currentLot.current_price'), 6000, 'Reconnect recovers missed bid');
+  assert.equal(run('reconnectAttempts'), 0, 'Healthy reconciliation resets the reconnect budget');
   snapshot = { status: 'closed', current_price: 6500, winnerUsername: 'alice' };
   await open();
   assert.equal(run('currentLot.status'), 'closed', 'Reconnect recovers missed closure');
@@ -56,5 +58,5 @@ const run = code => vm.runInContext(code, context);
   resolveBid({ ok: true, json: async () => ({ currentPrice: 5500 }) });
   await pending;
   assert.equal(run('bidSubmit.disabled'), false, 'Bid control recovers after the response');
-  console.log('PASS: stale bids, reconnect recovery, final result, snapshot buffering, pending bid protection');
+  console.log('PASS: stale bids, reconnect recovery/budget, final result, snapshot buffering, pending bid protection');
 })().catch(error => { console.error(error); process.exitCode = 1; });

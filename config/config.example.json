@@ -1,5 +1,13 @@
 {
-  "custom_config": { "database": { "path": "runtime/auction.sqlite3" } },
+  "custom_config": {
+    "database": { "path": "runtime/auction.sqlite3" },
+    "email": {
+      "provider_url": "https://api.resend.com",
+      "endpoint_path": "/emails",
+      "from": "QuickBid <onboarding@resend.dev>",
+      "api_token_env": "AUCTION_EMAIL_API_TOKEN"
+    }
+  },
   "listeners": [{ "address": "127.0.0.1", "port": 8080, "https": false }],
   "app": {
     "number_of_threads": 2,

@@ -1,5 +1,6 @@
 #include "controllers/CatalogController.h"
 
+#include "models/AuctionLifecycle.h"
 #include "models/Catalog.h"
 #include "services/CatalogService.h"
 
@@ -16,7 +17,7 @@ namespace auction
 {
 namespace
 {
-constexpr std::int64_t kMinimumStepCents = 500;
+constexpr std::int64_t kMinimumStepCents = auction::kMinimumBidStepCents;
 
 std::filesystem::path databasePath()
 {

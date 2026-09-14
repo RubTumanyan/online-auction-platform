@@ -106,7 +106,7 @@ DROGON_TEST(DatabaseInitialization)
     Connection connection(":memory:");
     CHECK(connection.scalar("PRAGMA foreign_keys") == 1);
     initialize(connection, "database");
-    CHECK(connection.scalar("PRAGMA user_version") == 3);
+    CHECK(connection.scalar("PRAGMA user_version") == 4);
     CHECK(connection.scalar("SELECT count(*) FROM categories") == 10);
     CHECK(connection.scalar("SELECT count(*) FROM auctions") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM users") == 0);
@@ -116,7 +116,7 @@ DROGON_TEST(DatabaseInitialization)
     CHECK(connection.scalar("SELECT count(DISTINCT image_url) FROM auctions") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM auctions WHERE current_price_cents = starting_price_cents AND current_winner_id IS NULL") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM auctions WHERE ends_at > strftime('%Y-%m-%dT%H:%M:%SZ','now')") == 1000);
-    CHECK(connection.scalar("SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'") == 9);
+    CHECK(connection.scalar("SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'") == 10);
     auto foreignKeys = connection.prepare("PRAGMA foreign_key_check");
     CHECK(!foreignKeys.step());
     auto integrity = connection.prepare("PRAGMA integrity_check");

@@ -2,32 +2,93 @@
 
 Internship assignment. Deadline: **September 14, 2026**.
 
-## Implemented scope (Phases 1–7)
+## Project overview
 
-Phase 1 provides the C++20/Drogon server, CMake/CTest, a static home page, and
-`GET /api/health` returning HTTP 200 with JSON `{"status":"ok"}`.
+QuickBid is a local, presentation-ready online auction demo. A C++20/Drogon
+server exposes the catalog, authentication, bidding, and live-auction APIs; SQLite
+persists users, hashed sessions, bids, prices, deadlines, and winners; and a dependency-free
+HTML/CSS/JavaScript client provides the browser experience. The deterministic dataset has
+10 categories, 1,000 lots, and one locally stored, attributed photograph per lot.
 
-Phase 2 adds an automatically initialized SQLite database, a deterministic seed of
-10 categories and 1,000 active auctions, and 1,000 local Wikimedia Commons photographs.
+## Implemented features (Phases 1–8)
 
-Phase 3 adds the read-only catalog REST API: categories, paginated active lots with
-filtering/search/sorting, and individual lot details. It intentionally does not add
-authentication, bidding, WebSockets, auction closing, profiles, recommendations, or new
-frontend pages beyond the read-only catalog.
+- Responsive catalog with search, category filters, price/time sorting, pagination,
+  shareable URL state, loading/error/empty states, and live countdowns.
+- Lot details with public bid history, authenticated integer-cent bidding, duplicate-submit
+  protection, per-lot WebSocket updates, bounded reconnect with authoritative recovery,
+  and automatic final winner display.
+- Registration, login, logout, 24-hour bearer sessions, salted PBKDF2 password hashes,
+  hashed tokens at rest, prepared SQL, and serialized bid/closure transactions.
+- Idempotent schema initialization and migrations, deterministic seed data, local image
+  integrity/provenance checks, automatic auction closure, and persisted results.
+- CMake/CTest coverage, frontend and two-client transport regressions, a clean isolated
+  demo helper, accessibility/responsive refinements, and the Phase 8 final audit.
 
-Phase 4 adds a responsive vanilla HTML/CSS/JavaScript catalog and lot-details page.
-The frontend uses the Phase 3 API directly and includes URL-persisted search, category
-filtering, sorting, pagination, shared live countdowns, and loading/empty/error states.
+## Architecture
 
-Phase 5 adds username/password authentication, expiring bearer sessions, atomic bid
-placement, bid history, and the minimum matching frontend controls.
+```text
+Browser (vanilla HTML/CSS/JS)
+  ├─ HTTP/JSON ──> Drogon controllers ──> services ──> SQLite RAII/prepared statements
+  └─ WebSocket <── per-lot event hub <──── committed bid and closure events
+```
 
-Phase 6 adds persisted auction closure and winner selection, a one-second event-loop
-scheduler, per-lot WebSocket broadcasts, and graceful live updates on the details page.
+Controllers parse requests and map errors to HTTP responses. Services own authentication,
+bidding, and closing rules; the catalog repository owns read queries. `BEGIN IMMEDIATE`
+serializes competing SQLite writers, and events are published only after commits. The
+browser treats its countdown as advisory and reconciles authoritative lot state after a
+WebSocket connection or reconnection.
 
-Phase 7 adds final UI/accessibility refinements, browser verification, native WebSocket
-regression coverage, and an isolated demo helper. See [the demo guide](docs/demo-guide.md)
-for the five-minute script, verification evidence, and limitations.
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Language/build | C++20, CMake 3.24+, Ninja, MSVC |
+| Server | Drogon |
+| Persistence | SQLite 3 with versioned SQL migrations |
+| Security | OpenSSL PBKDF2-HMAC-SHA256 and secure random tokens |
+| Frontend | Semantic HTML, responsive CSS, vanilla JavaScript |
+| Verification | CTest/Drogon Test, Node.js frontend and WebSocket checks |
+
+## API and WebSocket overview
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Readiness check |
+| `GET` | `/api/categories` | List categories |
+| `GET` | `/api/lots` | Paginated active catalog with validated filters/sort |
+| `GET` | `/api/lots/{id}` | Authoritative lot details and lifecycle state |
+| `POST` | `/api/auth/register` | Create a user and session |
+| `POST` | `/api/auth/login` | Create a session |
+| `GET` | `/api/auth/me` | Resolve a bearer session |
+| `POST` | `/api/auth/logout` | Revoke the current session |
+| `GET` | `/api/lots/{id}/bids` | Public paginated bid history |
+| `POST` | `/api/lots/{id}/bids` | Place an authenticated integer-cent bid |
+| WebSocket | `/ws/lots/{id}` | Receive `bid_updated` and `lot_closed` events |
+
+## Demo
+
+After building, start a fresh isolated demo from the repository root:
+
+```powershell
+node tools/demo.cjs start build/phase8-clean
+```
+
+Open <http://127.0.0.1:18857/> and <http://localhost:18857/> for separate browser
+sessions. The helper prints the exact command for shortening lot 1 to a 30-second auction.
+Follow [the 5–7 minute demo guide](docs/demo-guide.md) for the presentation sequence,
+credentials, talking points, and recovery notes.
+
+## Known limitations
+
+- This is a loopback demo without TLS, payments, shipping, seller administration,
+  rate limiting, password reset, or production account security.
+- Demo bearer tokens are stored in `localStorage`; only their SHA-256 hashes are stored
+  in SQLite. Demo credentials are intentionally public.
+- SQLite serializes writers, and WebSocket subscriptions are process-local; horizontal
+  scaling would require a shared database strategy and event broker.
+- Catalog cards do not stream price changes. The lot-details page is the live view.
+- Reconnect is bounded, and the UI eventually asks the user to refresh after repeated
+  failures. Firefox, Safari, physical phones, and a full screen-reader audit are untested.
 
 ## Windows prerequisites
 
@@ -306,7 +367,7 @@ Bidding remains exclusively on the authenticated HTTP endpoint. Accepted bids pr
   "type": "bid_updated",
   "lotId": 42,
   "currentPrice": 15000,
-  "minimumNextBid": 15500,
+  "minimumNextBid": 15020,
   "bid": {
     "id": 101,
     "bidderUsername": "alice",
@@ -463,7 +524,7 @@ Keep controllers thin and business logic in services. Use prepared statements, t
 integer cents, UTC timestamps, secure password hashing, pagination, and filtering/sorting indexes.
 The target dataset is approximately 1,000 products. Keep Windows/MSVC and Linux support.
 Do not commit secrets, generated builds, or local configuration. No automatic commits or pushes.
-Phases 1–7 are implemented for the local internship demo; production deployment is outside this scope.
+Phases 1–8 are implemented for the local internship demo; production deployment is outside this scope.
 
 ## References
 

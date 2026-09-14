@@ -4,6 +4,11 @@
 #include <optional>
 #include <string>
 
+namespace auction
+{
+inline constexpr std::int64_t kMinimumBidStepCents = 20;
+}
+
 namespace auction::models
 {
 struct ClosedLot

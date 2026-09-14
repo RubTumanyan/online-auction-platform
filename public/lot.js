@@ -38,12 +38,23 @@ function updateBidMinimum(value = minimumNextBid()) {
 }
 
 function updateBidAccess() {
-  const authenticated = window.auctionAuth?.user() != null;
+  const user = window.auctionAuth?.user() ?? null;
+  const authenticated = user != null;
+  const verified = user?.emailVerified === true;
   const accepting = currentLot?.status === "active" && !awaitingClosure;
   document.querySelector("#login-required").hidden = authenticated || !accepting;
-  document.querySelector("#bid-form").hidden = !authenticated || !accepting;
+  document.querySelector("#verify-required").hidden = !authenticated || verified || !accepting;
+  document.querySelector("#bid-form").hidden = !authenticated || !verified || !accepting;
   bidInput.disabled = !accepting;
   bidSubmit.disabled = !accepting || bidPending;
+}
+
+function stopLiveUpdates() {
+  socketClosing = true;
+  if (liveSocket) {
+    liveSocket.close(1000, "Page closed");
+    liveSocket = null;
+  }
 }
 
 async function loadBidHistory() {
@@ -74,6 +85,7 @@ function remainingLabel(value) {
 }
 
 function showError(title, message) {
+  stopLiveUpdates();
   loading.hidden = true; content.hidden = true;
   document.querySelector("#detail-error-title").textContent = title;
   document.querySelector("#detail-error-message").textContent = message;
@@ -159,7 +171,7 @@ function renderLot(lot) {
     : "Date unavailable";
   document.querySelector("#detail-description").textContent = lot.description;
   updateBidMinimum();
-  document.title = `${lot.title} — Aurelian Auctions`;
+  document.title = `${lot.title} — QuickBid`;
   loading.hidden = true; content.hidden = false;
   if (lot.status === "closed") applyClosedState(lot.currentPrice ?? lot.current_price, lot.winnerUsername ?? null, lot.closedAt ?? null);
   else {
@@ -193,8 +205,9 @@ function handleLiveEvent(event) {
 function connectLiveUpdates() {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   socketClosing = false;
-  liveSocket = new WebSocket(`${protocol}//${location.host}/ws/lots/${encodeURIComponent(currentId)}`);
-  liveSocket.addEventListener("open", async () => {
+  const socket = new WebSocket(`${protocol}//${location.host}/ws/lots/${encodeURIComponent(currentId)}`);
+  liveSocket = socket;
+  socket.addEventListener("open", async () => {
     setLiveStatus("Live updates connected");
     // Subscribe first, then reconcile bids or closure missed during a disconnect
     // (or between the initial detail request and the WebSocket handshake).
@@ -216,15 +229,16 @@ function connectLiveUpdates() {
         updateBidMinimum();
       }
       await loadBidHistory();
+      if (liveSocket === socket) reconnectAttempts = 0;
     } catch { setLiveStatus("Live updates unavailable; refresh the page", true); }
   });
-  liveSocket.addEventListener("message", message => {
+  socket.addEventListener("message", message => {
     try { handleLiveEvent(JSON.parse(message.data)); }
     catch { setLiveStatus("Live updates unavailable; refresh the page", true); }
   });
-  liveSocket.addEventListener("error", () => { /* The close event owns the user-facing fallback. */ });
-  liveSocket.addEventListener("close", () => {
-    liveSocket = null;
+  socket.addEventListener("error", () => { /* The close event owns the user-facing fallback. */ });
+  socket.addEventListener("close", () => {
+    if (liveSocket === socket) liveSocket = null;
     if (socketClosing) return;
     if (reconnectAttempts < 5) {
       reconnectAttempts += 1;
@@ -276,8 +290,7 @@ document.querySelector("#bid-form").addEventListener("submit", async event => {
   finally { bidPending = false; updateBidAccess(); }
 });
 addEventListener("pagehide", () => {
-  socketClosing = true;
-  if (liveSocket) liveSocket.close(1000, "Page closed");
+  stopLiveUpdates();
   if (countdownTimer !== null) clearInterval(countdownTimer);
   if (closureRefreshTimer !== null) clearTimeout(closureRefreshTimer);
 });
