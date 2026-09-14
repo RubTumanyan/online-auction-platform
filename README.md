@@ -75,8 +75,7 @@ After building, start a fresh isolated demo from the repository root:
 node tools/demo.cjs start build/phase8-clean
 ```
 
-Open <http://127.0.0.1:18857/> and <http://localhost:18857/> for separate browser
-sessions. The helper prints the exact command for shortening lot 1 to a 30-second auction.
+Open <https://bid-quick.site/> for the live demo (or <http://127.0.0.1:18857/> and <http://localhost:18857/> for local development). The helper prints the exact command for shortening lot 1 to a 30-second auction.
 Follow [the 5–7 minute demo guide](docs/demo-guide.md) for the presentation sequence,
 credentials, talking points, and recovery notes.
 
@@ -154,15 +153,17 @@ Pop-Location
 In a second terminal:
 
 ```powershell
-curl.exe --fail --include http://127.0.0.1:8080/api/health
-curl.exe --fail --include http://127.0.0.1:8080/
-curl.exe --fail --include http://127.0.0.1:8080/api/categories
-curl.exe --fail --include "http://127.0.0.1:8080/api/lots?page=1&limit=20"
+curl.exe --fail --include https://bid-quick.site/api/health
+curl.exe --fail --include https://bid-quick.site/
+curl.exe --fail --include https://bid-quick.site/api/categories
+curl.exe --fail --include "https://bid-quick.site/api/lots?page=1&limit=20"
 ```
+
+For local development, replace `https://bid-quick.site` with `http://127.0.0.1:8080`.
 
 Expect HTTP 200, `Content-Type: application/json`, and `{"status":"ok"}` from health
 (JSON whitespace may vary). The root URL serves the HTML home page. Open
-<http://127.0.0.1:8080/> in a browser. Stop the server with **Ctrl+C**.
+<https://bid-quick.site/> in a browser. Stop the server with **Ctrl+C**.
 
 On first startup the server creates `runtime/auction.sqlite3` beside the executable,
 applies `database/schema.sql`, and inserts the deterministic seed in one transaction.
@@ -225,25 +226,29 @@ With the server running, these commands exercise every endpoint and the main que
 features:
 
 ```powershell
-curl.exe --fail --include http://127.0.0.1:8080/api/categories
-curl.exe --fail --include "http://127.0.0.1:8080/api/lots?page=1&limit=20"
-curl.exe --fail --include "http://127.0.0.1:8080/api/lots?category_id=2&limit=10"
-curl.exe --fail --include "http://127.0.0.1:8080/api/lots?search=digital"
-curl.exe --fail --include "http://127.0.0.1:8080/api/lots?sort_by=current_price&order=desc"
-curl.exe --fail --include "http://127.0.0.1:8080/api/lots?sort_by=end_time&order=asc"
-curl.exe --fail --include http://127.0.0.1:8080/api/lots/101
-curl.exe --include http://127.0.0.1:8080/api/lots/9999
-curl.exe --include "http://127.0.0.1:8080/api/lots?limit=101"
+curl.exe --fail --include https://bid-quick.site/api/categories
+curl.exe --fail --include "https://bid-quick.site/api/lots?page=1&limit=20"
+curl.exe --fail --include "https://bid-quick.site/api/lots?category_id=2&limit=10"
+curl.exe --fail --include "https://bid-quick.site/api/lots?search=digital"
+curl.exe --fail --include "https://bid-quick.site/api/lots?sort_by=current_price&order=desc"
+curl.exe --fail --include "https://bid-quick.site/api/lots?sort_by=end_time&order=asc"
+curl.exe --fail --include https://bid-quick.site/api/lots/101
+curl.exe --include https://bid-quick.site/api/lots/9999
+curl.exe --include "https://bid-quick.site/api/lots?limit=101"
 ```
+
+For local development, replace `https://bid-quick.site` with `http://127.0.0.1:8080`.
 
 The final two commands intentionally return 404 and 400, so they omit `--fail` to show
 the JSON error bodies.
 
 ## Phase 4 frontend catalog
 
-Start the server and open <http://127.0.0.1:8080/>. The catalog loads categories and lots
+Start the server and open <https://bid-quick.site/>. The catalog loads categories and lots
 from the API; no product data is hardcoded in JavaScript. Selecting a card opens
 `/lot.html?id={id}`, which loads that lot from `GET /api/lots/{id}`.
+
+For local development, open <http://127.0.0.1:8080/> instead.
 
 Catalog filters are stored in the address bar, so refreshing or sharing the URL preserves
 the current page, search, category, and sort order. Search requests are debounced. A single
@@ -317,14 +322,16 @@ POST /api/lots/{id}/bids
 Windows examples with the server running:
 
 ```powershell
-curl.exe --include -H "Content-Type: application/json" -d '{"username":"ruben","password":"StrongPassword123!"}' http://127.0.0.1:8080/api/auth/register
-$login = curl.exe --silent -H "Content-Type: application/json" -d '{"username":"alice","password":"Alice123!"}' http://127.0.0.1:8080/api/auth/login | ConvertFrom-Json
+curl.exe --include -H "Content-Type: application/json" -d '{"username":"ruben","password":"StrongPassword123!"}' https://bid-quick.site/api/auth/register
+$login = curl.exe --silent -H "Content-Type: application/json" -d '{"username":"alice","password":"Alice123!"}' https://bid-quick.site/api/auth/login | ConvertFrom-Json
 $token = $login.token
-curl.exe --include -H "Authorization: Bearer $token" http://127.0.0.1:8080/api/auth/me
-curl.exe --include "http://127.0.0.1:8080/api/lots/1/bids?page=1&pageSize=10"
-curl.exe --include -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"amount":3175}' http://127.0.0.1:8080/api/lots/1/bids
-curl.exe --include -X POST -H "Authorization: Bearer $token" http://127.0.0.1:8080/api/auth/logout
+curl.exe --include -H "Authorization: Bearer $token" https://bid-quick.site/api/auth/me
+curl.exe --include "https://bid-quick.site/api/lots/1/bids?page=1&pageSize=10"
+curl.exe --include -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"amount":3175}' https://bid-quick.site/api/lots/1/bids
+curl.exe --include -X POST -H "Authorization: Bearer $token" https://bid-quick.site/api/auth/logout
 ```
+
+For local development, replace `https://bid-quick.site` with `http://127.0.0.1:8080`.
 
 Amounts are integer cents at the API boundary. The UI displays USD and converts an entered
 dollar amount to cents before submitting it. Successful bids refresh the displayed price
@@ -404,13 +411,15 @@ socket failure, then shows a refresh message while preserving HTTP behavior.
 
 Two-browser manual check:
 
-1. Open the same active `/lot.html?id={id}` URL in two separate browser profiles/windows.
+1. Open the same active `https://bid-quick.site/lot.html?id={id}` URL in two separate browser profiles/windows.
 2. Log in as `alice` (`Alice123!`) in one and `bob` (`Bob123!`) in the other.
 3. Place a valid bid in either window.
 4. Confirm the other window updates its price, minimum, and recent bids without refresh.
 5. For closure, set that test lot's `ends_at` to a UTC value a few seconds ahead and keep
    both windows open. Confirm both show the final result, then verify another POST bid
    returns HTTP 409.
+
+For local development, use `http://127.0.0.1:8080/lot.html?id={id}` instead.
 
 Known limitations: subscriptions are process-local, so multi-process deployment would
 need a shared broker; catalog cards do not receive WebSocket updates; and the demo client
@@ -487,7 +496,7 @@ cmake --build --preset debug --parallel
 ctest --preset debug
 ./build/debug/auction_server
 # In another terminal:
-curl --fail --include http://127.0.0.1:8080/api/health
+curl --fail --include https://bid-quick.site/api/health
 ```
 
 ## Directory structure and responsibilities
@@ -671,6 +680,8 @@ these optional JavaScript checks and the demo helper; the application itself doe
 require Node. The helper uses port 18857 and creates a fresh isolated database. It prints
 the exact close command for another terminal. The transport tests use port 18856 and
 remove only their own temporary database/configuration on completion.
+
+For local development, open <http://127.0.0.1:18857/> for the demo helper.
 
 On September 14, all six CTest suites, the frontend regression check, and both transport
 modes passed. The actual two-session Chromium browser flow, restart recovery, desktop
