@@ -34,7 +34,12 @@ function renderAuth() {
   else hideVerification();
   notify();
 }
-function openAuth() { authElements.message.textContent = ""; authElements.dialog.showModal(); authElements.name.focus(); }
+function openAuth() {
+  if (!authElements.dialog) { console.error("Auth dialog not found"); return; }
+  authElements.message.textContent = "";
+  try { authElements.dialog.showModal(); } catch (e) { console.error("Dialog showModal failed:", e); }
+  authElements.name.focus();
+}
 function setMode(mode) {
   authMode = mode; const registering = mode === "register";
   authElements.title.textContent = registering ? "Create account" : "Login";
@@ -101,7 +106,10 @@ authElements.open.addEventListener("click", openAuth);
 authElements.close.addEventListener("click", () => authElements.dialog.close());
 authElements.switchMode.addEventListener("click", () => setMode(authMode === "login" ? "register" : "login"));
 authElements.form.addEventListener("submit", async event => {
-  event.preventDefault(); authElements.message.textContent = ""; authElements.submit.disabled = true;
+  event.preventDefault();
+  if (!authElements.message) { console.error("Auth message element not found"); return; }
+  authElements.message.textContent = "";
+  authElements.submit.disabled = true;
   try {
     const payload = { username: authElements.name.value.trim(), password: authElements.password.value };
     if (authMode === "register") payload.email = authElements.email.value.trim();
@@ -109,7 +117,7 @@ authElements.form.addEventListener("submit", async event => {
     localStorage.setItem(authStorageKey, result.token); authUser = result.user; authElements.form.reset(); authElements.dialog.close(); renderAuth();
     if (authUser && !authUser.emailVerified) {
       const devMode = result.emailDeliveryMode === "dev" && result.devCode;
-      showVerification(result.emailDeliveryFailed ? "We couldn’t email your verification code. Use Resend code." : "");
+      showVerification(result.emailDeliveryFailed ? "We couldn't email your verification code. Use Resend code." : "");
       if (devMode) verification.message.textContent += ` Demo mode: your code is ${result.devCode}.`;
       if (!result.emailDeliveryFailed) startVerificationCooldown(60);
     }
