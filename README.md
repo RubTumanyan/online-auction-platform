@@ -2,7 +2,7 @@
 
 Internship assignment. Deadline: **September 14, 2026**.
 
-## Implemented scope (Phases 1–6)
+## Implemented scope (Phases 1–7)
 
 Phase 1 provides the C++20/Drogon server, CMake/CTest, a static home page, and
 `GET /api/health` returning HTTP 200 with JSON `{"status":"ok"}`.
@@ -24,6 +24,10 @@ placement, bid history, and the minimum matching frontend controls.
 
 Phase 6 adds persisted auction closure and winner selection, a one-second event-loop
 scheduler, per-lot WebSocket broadcasts, and graceful live updates on the details page.
+
+Phase 7 adds final UI/accessibility refinements, browser verification, native WebSocket
+regression coverage, and an isolated demo helper. See [the demo guide](docs/demo-guide.md)
+for the five-minute script, verification evidence, and limitations.
 
 ## Windows prerequisites
 
@@ -327,8 +331,8 @@ Closure produces:
 
 The details page updates price, minimum bid, bid history, status, final price, and winner
 without refresh. At a local countdown of zero it displays `Closing…`, disables bidding,
-and waits for the authoritative socket/API state. It makes one reconnect attempt after a
-socket failure, then shows a subtle refresh message while preserving HTTP behavior.
+and waits for the authoritative socket/API state. It makes up to five reconnect attempts with capped exponential backoff after a
+socket failure, then shows a refresh message while preserving HTTP behavior.
 
 Two-browser manual check:
 
@@ -453,13 +457,13 @@ Drogon's JSON settings and runs its HTTP event loop; Drogon dispatches `/api/hea
 and serves the home page from `public/`. The database wrapper links SQLite directly and uses prepared
 statements for seeded values. CTest runs the test executables using Drogon's testing tools.
 
-## Rules for later phases
+## Maintenance rules
 
 Keep controllers thin and business logic in services. Use prepared statements, transactions for bidding,
 integer cents, UTC timestamps, secure password hashing, pagination, and filtering/sorting indexes.
 The target dataset is approximately 1,000 products. Keep Windows/MSVC and Linux support.
 Do not commit secrets, generated builds, or local configuration. No automatic commits or pushes.
-The remaining phase is final UI polish and presentation preparation.
+Phases 1–7 are implemented for the local internship demo; production deployment is outside this scope.
 
 ## References
 
@@ -567,3 +571,43 @@ receive accepted bids and scheduled closure, winner persistence, and per-lot iso
 It uses a minimal TCP WebSocket receiver because this host's Node built-in WebSocket
 client rejected the handshake. The frontend check uses a simulated DOM; the two-browser
 visual checklist above still requires manual verification.
+
+
+## Phase 7 build, test, and demo
+
+After the Developer PowerShell setup above, use an unused build directory:
+
+```powershell
+cmake --preset debug -B build/phase7-verified
+cmake --build build/phase7-verified --parallel 4
+ctest --test-dir build/phase7-verified --output-on-failure
+node tests/LotLiveUpdatesTests.cjs
+node tests/RealtimeTransportTests.cjs build/phase7-verified
+node tests/RealtimeTransportTests.cjs build/phase7-verified --native
+node tools/demo.cjs start build/phase7-verified
+```
+
+Run each command only after the previous command succeeds. Node 22.13+ is required for
+these optional JavaScript checks and the demo helper; the application itself does not
+require Node. The helper uses port 18857 and creates a fresh isolated database. It prints
+the exact close command for another terminal. The transport tests use port 18856 and
+remove only their own temporary database/configuration on completion.
+
+On September 14, all six CTest suites, the frontend regression check, and both transport
+modes passed. The actual two-session Chromium browser flow, restart recovery, desktop
+and mobile-frame layout inspection, and error recovery are recorded in
+[docs/demo-guide.md](docs/demo-guide.md). Other browser engines and operating systems
+were not tested. No commit or push is part of this phase's verification.
+
+This host's fresh MSVC application build reused its existing dependencies by adding:
+
+```powershell
+-DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR="$PWD/build/phase5-clean/vcpkg_installed"
+```
+
+to the configure command. This option is only appropriate when those dependencies
+already exist; a new checkout should use the normal manifest install above.
+
+The earlier Node handshake limitation was isolated to reuse of the health probe's pooled
+connection. The test now sends `Connection: close` for readiness, and native WebSocket
+mode passes without a server protocol change. See the demo guide for diagnostic detail.

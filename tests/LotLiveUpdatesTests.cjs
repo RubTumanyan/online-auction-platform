@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const elements = new Map();
 function element(selector) {
-  if (!elements.has(selector)) elements.set(selector, { textContent: '', value: '', classList: { add() {}, toggle() {} }, addEventListener() {}, replaceChildren() {}, append() {} });
+  if (!elements.has(selector)) elements.set(selector, { textContent: '', value: '', handlers: {}, classList: { add() {}, toggle() {} }, addEventListener(type, handler) { this.handlers[type] = handler; }, replaceChildren() {}, append() {} });
   return elements.get(selector);
 }
 let open;
@@ -36,5 +36,25 @@ const run = code => vm.runInContext(code, context);
   run('currentLot=null');
   await open();
   assert.equal(run('pendingEvents[0].type'), 'lot_closed', 'Initial handshake snapshot is retained');
-  console.log('PASS: stale bids, reconnect bid/closure recovery, final result, initial snapshot buffering');
+  run("currentLot={status:'active',current_price:5000,minimum_step:500}; awaitingClosure=false");
+  context.window.auctionAuth = { user: () => ({ username: 'alice' }), token: () => 'test-token' };
+  element('#bid-amount').value = '55.00';
+  let requests = 0, resolveBid;
+  context.fetch = async url => {
+    if (url.endsWith('/bids')) {
+      requests++;
+      return new Promise(resolve => { resolveBid = resolve; });
+    }
+    return { ok: true, json: async () => ({ items: [], total: 0 }) };
+  };
+  const submit = element('#bid-form').handlers.submit;
+  const pending = submit({ preventDefault() {} });
+  run('updateBidAccess()');
+  assert.equal(run('bidSubmit.disabled'), true, 'Live updates keep a pending bid disabled');
+  await submit({ preventDefault() {} });
+  assert.equal(requests, 1, 'Repeated submit cannot send a second pending bid');
+  resolveBid({ ok: true, json: async () => ({ currentPrice: 5500 }) });
+  await pending;
+  assert.equal(run('bidSubmit.disabled'), false, 'Bid control recovers after the response');
+  console.log('PASS: stale bids, reconnect recovery, final result, snapshot buffering, pending bid protection');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -26,6 +26,17 @@ function sql(statement) {
   try { connection.exec('PRAGMA busy_timeout=5000'); connection.exec(statement); } finally { connection.close(); }
 }
 async function connect(lot) {
+  if (process.argv.includes('--native')) {
+    const events = [], socket = new WebSocket('ws://127.0.0.1:18856/ws/lots/' + lot);
+    sockets.push({ destroy: () => socket.close() });
+    socket.addEventListener('message', message => events.push(JSON.parse(message.data)));
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Native WebSocket handshake timed out')), 5000);
+      socket.addEventListener('open', () => { clearTimeout(timer); console.log('Native subscription opened:', lot); resolve(); }, { once: true });
+      socket.addEventListener('error', event => { clearTimeout(timer); reject(event.error ?? new Error('Native WebSocket failed')); }, { once: true });
+    });
+    return events;
+  }
   const net = require('node:net');
   const crypto = require('node:crypto');
   const key = crypto.randomBytes(16).toString('base64');
@@ -69,7 +80,7 @@ async function connect(lot) {
 
 (async () => {
   try {
-    await until(async () => { try { return (await fetch(`${base}/api/health`)).ok; } catch { return false; } });
+    await until(async () => { try { return (await fetch(`${base}/api/health`, { headers: { Connection: "close" } })).ok; } catch { return false; } });
     sql("UPDATE auctions SET ends_at='2099-01-01T00:00:00Z' WHERE id IN (1,2)");
     const a = await connect(1), b = await connect(1), unrelated = await connect(2);
     const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'alice', password: 'Alice123!' }) });
@@ -99,9 +110,5 @@ async function connect(lot) {
     for (const suffix of ['', '-wal', '-shm', '-journal']) fs.rmSync(database + suffix, { force: true });
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
-
-
-
-
 
 

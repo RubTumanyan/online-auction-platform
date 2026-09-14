@@ -14,6 +14,7 @@ let socketClosing = false;
 let reconnectAttempts = 0;
 let closureRefreshAttempts = 0;
 let awaitingClosure = false;
+let bidPending = false;
 let currentLot = null;
 let currentId = null;
 const pendingEvents = [];
@@ -42,7 +43,7 @@ function updateBidAccess() {
   document.querySelector("#login-required").hidden = authenticated || !accepting;
   document.querySelector("#bid-form").hidden = !authenticated || !accepting;
   bidInput.disabled = !accepting;
-  bidSubmit.disabled = !accepting;
+  bidSubmit.disabled = !accepting || bidPending;
 }
 
 async function loadBidHistory() {
@@ -90,6 +91,9 @@ function finalResult(price, winnerUsername) {
 function applyClosedState(price, winnerUsername, closedAt = null) {
   if (!currentLot) return;
   currentLot.status = "closed";
+  document.querySelector("#bid-title").textContent = "Auction result";
+  document.querySelector("#detail-price-label").textContent = "Final price";
+  document.querySelector("#bid-message").textContent = "";
   currentLot.current_price = price;
   currentLot.winnerUsername = winnerUsername;
   currentLot.closedAt = closedAt;
@@ -222,10 +226,10 @@ function connectLiveUpdates() {
   liveSocket.addEventListener("close", () => {
     liveSocket = null;
     if (socketClosing) return;
-    if (reconnectAttempts < 1) {
+    if (reconnectAttempts < 5) {
       reconnectAttempts += 1;
       setLiveStatus("Reconnecting live updates…", true);
-      setTimeout(() => { if (!socketClosing) connectLiveUpdates(); }, 1000);
+      setTimeout(() => { if (!socketClosing) connectLiveUpdates(); }, Math.min(1000 * 2 ** (reconnectAttempts - 1), 8000));
     } else setLiveStatus("Live updates unavailable; refresh the page", true);
   });
 }
@@ -247,12 +251,13 @@ document.querySelector("#bid-login").addEventListener("click", () => window.auct
 addEventListener("authchange", updateBidAccess);
 document.querySelector("#bid-form").addEventListener("submit", async event => {
   event.preventDefault();
+  if (bidPending) return;
   const message = document.querySelector("#bid-message");
   const value = bidInput.value.trim();
   if (!/^\d+(\.\d{1,2})?$/.test(value)) { message.textContent = "Enter a valid USD amount with at most two decimals."; return; }
   const amount = Math.round(Number(value) * 100);
   if (!Number.isSafeInteger(amount) || amount <= 0) { message.textContent = "Enter a valid positive bid amount."; return; }
-  bidSubmit.disabled = true; message.textContent = "Placing bid…";
+  bidPending = true; bidSubmit.disabled = true; message.textContent = "Placing bid…";
   try {
     const response = await fetch(`/api/lots/${encodeURIComponent(currentId)}/bids`, {
       method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${window.auctionAuth.token()}` },
@@ -268,7 +273,7 @@ document.querySelector("#bid-form").addEventListener("submit", async event => {
     }
     await loadBidHistory();
   } catch (error) { message.textContent = error.message; }
-  finally { updateBidAccess(); }
+  finally { bidPending = false; updateBidAccess(); }
 });
 addEventListener("pagehide", () => {
   socketClosing = true;

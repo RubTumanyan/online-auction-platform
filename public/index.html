@@ -20,7 +20,7 @@
       </a>
       <nav aria-label="Primary navigation">
         <a class="nav-link active" href="/" aria-current="page">Live catalog</a>
-        <a class="nav-link" href="/api/health">API status</a>
+
       </nav>
       <div class="auth-controls">
         <span id="auth-username" hidden></span>
@@ -34,7 +34,7 @@
           <p class="eyebrow">Curated lots · closing daily</p>
           <h1 id="page-title">Find something worth winning.</h1>
         </div>
-        <p class="intro-copy">Explore one-of-a-kind pieces across ten collections. Every lot is live, local, and ready for a closer look.</p>
+        <p class="intro-copy">Explore one-of-a-kind pieces across ten collections. Browse the photographs, follow the bidding, and find your next favorite.</p>
       </section>
       <section class="catalog-shell" aria-label="Auction catalog">
         <form class="catalog-controls" id="catalog-controls" role="search">
@@ -92,15 +92,15 @@
     </main>
     <footer>
       <p>Aurelian Auctions</p>
-      <p>Secure demo bidding · Real-time updates arrive in Phase 6.</p>
+      <p>Demo auctions · Live bidding and automatic closing.</p>
     </footer>
     <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
       <button class="dialog-close" id="auth-close" type="button" aria-label="Close">×</button>
       <p class="eyebrow">Member access</p><h2 id="auth-title">Login</h2>
       <form id="auth-form">
         <label for="auth-name">Username</label><input id="auth-name" name="username" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">
-        <label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128">
-        <p class="form-message" id="auth-message" role="alert"></p>
+        <label for="auth-password">Password</label><input aria-describedby="auth-help" id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128">
+        <p class="input-help" id="auth-help">Username: 3–30 letters, numbers or underscores. Password: 8–128 characters.</p><p class="form-message" id="auth-message" role="alert"></p>
         <button class="button button-primary" id="auth-submit" type="submit">Login</button>
       </form>
       <button class="text-button" id="auth-switch" type="button">Need an account? Register</button>

@@ -143,3 +143,28 @@ footer p { margin: 0; }
 @media (max-width: 48rem) { .site-header { min-height: 4.25rem; } .site-header nav { display: none; } .catalog-intro { grid-template-columns: 1fr; gap: 1.2rem; padding-top: 3rem; } .intro-copy { max-width: 38rem; } .lot-grid,.loading-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .lot-detail,.detail-loading { grid-template-columns: 1fr; } .detail-media { position: static; } }
 @media (max-width: 35rem) { .brand>span:last-child { display: none; } .catalog-controls { grid-template-columns: 1fr; } .search-field { grid-column: auto; } .catalog-summary { align-items: flex-start; flex-direction: column; padding: 1.2rem 0; } .lot-grid,.loading-grid { grid-template-columns: 1fr; } .card-title { min-height: auto; } .pagination { grid-template-columns: 1fr 1fr; } .pagination p { grid-column: 1/-1; grid-row: 1; } .pagination .button { width: 100%; } .bid-panel,.detail-metadata { grid-template-columns: 1fr; } .detail-metadata { gap: 1rem; } .detail-metadata div+div { padding: 1rem 0 0; border-top: 1px solid var(--line); border-left: 0; } .bid-input-row { grid-template-columns: 1fr; } footer { flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* Final presentation and accessibility refinements. */
+:focus-visible { outline: 3px solid #a66b17; outline-offset: 3px; }
+.site-header :focus-visible { outline-color: var(--gold-bright); }
+.header-button, .dialog-close { min-height: 2.75rem; }
+.auth-controls { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+.auth-controls span { overflow-wrap: anywhere; max-width: 15rem; }
+.detail-copy { min-width: 0; }
+.detail-copy h1, .detail-price, .detail-metadata dd, .bid-history li { overflow-wrap: anywhere; }
+.detail-copy .eyebrow, .text-button { color: #80571b; }
+.detail-status-row { flex-wrap: wrap; }
+.bid-history li strong { min-width: 0; overflow-wrap: anywhere; }
+.bid-history li span { text-align: right; }
+.bidding-panel .form-message { color: var(--danger); }
+.form-message:empty { display: none; }
+.auth-dialog { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.auth-dialog .eyebrow { color: #80571b; }
+@media (max-width: 35rem) {
+  .site-header { gap: 1rem; padding-top: .6rem; padding-bottom: .6rem; }
+  .auth-controls span { max-width: 10rem; }
+  .auth-dialog { padding: 1.5rem; }
+  .bid-history li { flex-direction: column; gap: .2rem; }
+  .bid-history li span { text-align: left; }
+}
+.description-block p { overflow-wrap: anywhere; }
