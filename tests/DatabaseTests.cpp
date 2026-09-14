@@ -105,8 +105,8 @@ DROGON_TEST(DatabaseInitialization)
 {
     Connection connection(":memory:");
     CHECK(connection.scalar("PRAGMA foreign_keys") == 1);
-    initialize(connection, "database");
-    CHECK(connection.scalar("PRAGMA user_version") == 4);
+initialize(connection, "database");
+    CHECK(connection.scalar("PRAGMA user_version") == 5);
     CHECK(connection.scalar("SELECT count(*) FROM categories") == 10);
     CHECK(connection.scalar("SELECT count(*) FROM auctions") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM users") == 0);
@@ -116,7 +116,7 @@ DROGON_TEST(DatabaseInitialization)
     CHECK(connection.scalar("SELECT count(DISTINCT image_url) FROM auctions") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM auctions WHERE current_price_cents = starting_price_cents AND current_winner_id IS NULL") == 1000);
     CHECK(connection.scalar("SELECT count(*) FROM auctions WHERE ends_at > strftime('%Y-%m-%dT%H:%M:%SZ','now')") == 1000);
-    CHECK(connection.scalar("SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'") == 10);
+    CHECK(connection.scalar("SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'") == 12);
     auto foreignKeys = connection.prepare("PRAGMA foreign_key_check");
     CHECK(!foreignKeys.step());
     auto integrity = connection.prepare("PRAGMA integrity_check");
@@ -160,7 +160,7 @@ DROGON_TEST(ConstraintsAndPreparedStatements)
     CHECK(rejected(connection, "UPDATE auctions SET status = 'pending' WHERE id = 1"));
     CHECK(rejected(connection, "UPDATE auctions SET image_url = 'https://example.com/photo.jpg' WHERE id = 1"));
     CHECK(rejected(connection, "UPDATE auctions SET image_url = '/images/products/../private.jpg' WHERE id = 1"));
-    CHECK(rejected(connection, "INSERT INTO categories(name,slug) VALUES('Clothing','duplicate')"));
+    CHECK(rejected(connection, "INSERT INTO categories(name,slug) VALUES('Materials & Consumables','duplicate')"));
     CHECK(rejected(connection, "DELETE FROM categories WHERE id = 1"));
     auto insert = connection.prepare("INSERT INTO users(display_name,email,password_hash,created_at,updated_at,username) VALUES(?,?,?,'2026-09-12T00:00:00Z','2026-09-12T00:00:00Z',?)");
     insert.bind(1, std::string("O'Brien'); DROP TABLE auctions; --"));

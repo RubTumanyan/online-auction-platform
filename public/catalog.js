@@ -4,23 +4,32 @@ const PAGE_SIZE = 20;
 const elements = Object.fromEntries([
   "form", "search", "category", "sort", "result-count", "category-notice", "loading-state",
   "error-state", "error-message", "empty-state", "lot-grid", "pagination", "previous-page",
-  "next-page", "page-information", "retry-button", "clear-button"
+  "next-page", "page-information", "retry-button", "clear-button",
+  "min-price", "max-price"
 ].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.querySelector(`#${id}`)]));
 elements.form = document.querySelector("#catalog-controls");
 let state = readStateFromUrl();
 let requestController = null;
 let countdownTimer = null;
 let searchTimer = null;
+let priceTimer = null;
 
 function readStateFromUrl() {
   const params = new URLSearchParams(location.search);
   const sortBy = ["current_price", "end_time"].includes(params.get("sort_by")) ? params.get("sort_by") : "end_time";
   const order = ["asc", "desc"].includes(params.get("order")) ? params.get("order") : "asc";
   const rawPage = params.get("page") ?? "";
+  const priceFrom = (raw) => {
+    if (raw === null) return null;
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  };
   return {
     page: /^\d+$/.test(rawPage) && Number(rawPage) > 0 ? Number(rawPage) : 1,
     search: (params.get("search") ?? "").slice(0, 200),
     categoryId: /^[1-9]\d*$/.test(params.get("category_id") ?? "") ? params.get("category_id") : "",
+    minPrice: priceFrom(params.get("min_price")),
+    maxPrice: priceFrom(params.get("max_price")),
     sortBy, order
   };
 }
@@ -30,6 +39,8 @@ function writeStateToUrl() {
   if (state.page > 1) params.set("page", String(state.page));
   if (state.search) params.set("search", state.search);
   if (state.categoryId) params.set("category_id", state.categoryId);
+  if (state.minPrice !== null) params.set("min_price", String(state.minPrice));
+  if (state.maxPrice !== null) params.set("max_price", String(state.maxPrice));
   if (state.sortBy !== "end_time") params.set("sort_by", state.sortBy);
   if (state.order !== "asc") params.set("order", state.order);
   history.replaceState(null, "", params.size ? `/?${params}` : "/");
@@ -39,6 +50,8 @@ function syncControls() {
   elements.search.value = state.search;
   elements.category.value = state.categoryId;
   elements.sort.value = `${state.sortBy}:${state.order}`;
+  elements.minPrice.value = state.minPrice === null ? "" : String(state.minPrice);
+  elements.maxPrice.value = state.maxPrice === null ? "" : String(state.maxPrice);
 }
 
 async function fetchJson(url, signal) {
@@ -146,6 +159,8 @@ async function loadLots({ focusResults = false } = {}) {
   const params = new URLSearchParams({ page: state.page, limit: PAGE_SIZE, sort_by: state.sortBy, order: state.order });
   if (state.search) params.set("search", state.search);
   if (state.categoryId) params.set("category_id", state.categoryId);
+  if (state.minPrice !== null) params.set("min_price", String(state.minPrice * 100));
+  if (state.maxPrice !== null) params.set("max_price", String(state.maxPrice * 100));
   try {
     renderLots(await fetchJson(`/api/lots?${params}`, requestController.signal));
     if (focusResults) elements.resultCount.scrollIntoView({ block: "nearest" });
@@ -156,14 +171,30 @@ async function loadLots({ focusResults = false } = {}) {
   }
 }
 
+function parsePriceInput(value) {
+  const parsed = Number(value);
+  if (value.trim() === "" || (Number.isInteger(parsed) && parsed >= 0)) return parsed;
+  return null;
+}
+
 elements.form.addEventListener("submit", event => event.preventDefault());
 elements.search.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.search = elements.search.value.trim(); state.page = 1; loadLots(); }, 350); });
 elements.category.addEventListener("change", () => { state.categoryId = elements.category.value; state.page = 1; loadLots(); });
 elements.sort.addEventListener("change", () => { [state.sortBy, state.order] = elements.sort.value.split(":"); state.page = 1; loadLots(); });
+for (const [key, input] of [["minPrice", elements.minPrice], ["maxPrice", elements.maxPrice]]) {
+  input.addEventListener("input", () => {
+    clearTimeout(priceTimer);
+    priceTimer = setTimeout(() => {
+      const value = parsePriceInput(input.value);
+      if (value === null) { input.value = ""; }
+      if (state[key] !== value) { state[key] = value; state.page = 1; loadLots(); }
+    }, 350);
+  });
+}
 elements.previousPage.addEventListener("click", () => { state.page = Math.max(1, state.page - 1); loadLots({ focusResults: true }); });
 elements.nextPage.addEventListener("click", () => { state.page += 1; loadLots({ focusResults: true }); });
 elements.retryButton.addEventListener("click", () => loadLots());
-elements.clearButton.addEventListener("click", () => { state = { page: 1, search: "", categoryId: "", sortBy: "end_time", order: "asc" }; syncControls(); loadLots(); });
+elements.clearButton.addEventListener("click", () => { state = { page: 1, search: "", categoryId: "", minPrice: null, maxPrice: null, sortBy: "end_time", order: "asc" }; syncControls(); loadLots(); });
 addEventListener("popstate", () => { state = readStateFromUrl(); syncControls(); loadLots(); });
 addEventListener("pagehide", () => { if (countdownTimer !== null) clearInterval(countdownTimer); requestController?.abort(); });
 

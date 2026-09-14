@@ -24,13 +24,19 @@ add_library(auction_http OBJECT
     src/controllers/CatalogController.cpp
     src/controllers/HealthController.cpp
     src/controllers/LotWebSocketController.cpp
-    src/realtime/AuctionEvents.cpp
+    src/controllers/ProfileController.cpp
+src/realtime/AuctionEvents.cpp
     src/repositories/CatalogRepository.cpp
+    src/repositories/ProfileRepository.cpp
+    src/repositories/RecommendationRepository.cpp
     src/runtime/RuntimePaths.cpp
-src/services/AuthBidService.cpp
+    src/services/AuthBidService.cpp
     src/services/AuctionCloseService.cpp
     src/services/CatalogService.cpp
-    src/services/EmailDelivery.cpp)
+    src/services/EmailDelivery.cpp
+    src/services/ProfileService.cpp
+    src/services/RecommendationService.cpp
+    src/security/HttpSecurity.cpp)
 target_include_directories(auction_http PUBLIC src)
 target_link_libraries(auction_http PUBLIC Drogon::Drogon auction_database)
 if(MSVC)
@@ -50,9 +56,11 @@ set_property(TARGET auction_server PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TAR
 set(AUCTION_RESOURCE_FILES
     "${PROJECT_SOURCE_DIR}/public/index.html"
     "${PROJECT_SOURCE_DIR}/public/lot.html"
+    "${PROJECT_SOURCE_DIR}/public/profile.html"
     "${PROJECT_SOURCE_DIR}/public/styles.css"
     "${PROJECT_SOURCE_DIR}/public/catalog.js"
     "${PROJECT_SOURCE_DIR}/public/lot.js"
+    "${PROJECT_SOURCE_DIR}/public/profile.js"
     "${PROJECT_SOURCE_DIR}/public/auth.js"
     "${PROJECT_SOURCE_DIR}/database/image_credits.csv"
     "${PROJECT_SOURCE_DIR}/database/image_manifest.json"
@@ -60,6 +68,7 @@ set(AUCTION_RESOURCE_FILES
     "${PROJECT_SOURCE_DIR}/database/migrations/002_auth_bidding.sql"
     "${PROJECT_SOURCE_DIR}/database/migrations/003_auction_lifecycle.sql"
     "${PROJECT_SOURCE_DIR}/database/migrations/004_email_verification.sql"
+    "${PROJECT_SOURCE_DIR}/database/migrations/005_user_interactions.sql"
     "${PROJECT_SOURCE_DIR}/database/seed_auctions.json"
     "${PROJECT_SOURCE_DIR}/database/seed_categories.json")
 set(AUCTION_RESOURCE_STAMP "${CMAKE_CURRENT_BINARY_DIR}/auction-resources-$<CONFIG>.stamp")
@@ -128,5 +137,40 @@ if(BUILD_TESTING)
     add_dependencies(auction_lifecycle_tests auction_resources)
     add_test(NAME auction_lifecycle COMMAND auction_lifecycle_tests)
     set_tests_properties(auction_lifecycle PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
+
+    add_executable(auction_security_tests tests/SecurityHttpTests.cpp)
+    target_link_libraries(auction_security_tests PRIVATE auction_http auction_database)
+    add_dependencies(auction_security_tests auction_resources)
+    add_test(NAME security_headers_and_limits COMMAND auction_security_tests)
+    set_tests_properties(security_headers_and_limits PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
+
+    add_executable(auction_recommendation_tests tests/RecommendationTests.cpp)
+    target_link_libraries(auction_recommendation_tests PRIVATE auction_http auction_database)
+    add_dependencies(auction_recommendation_tests auction_resources)
+    add_test(NAME recommendation_engine COMMAND auction_recommendation_tests)
+    set_tests_properties(recommendation_engine PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
+
+    add_executable(auction_profile_tests tests/ProfileHttpTests.cpp)
+    target_link_libraries(auction_profile_tests PRIVATE auction_http auction_database)
+    add_dependencies(auction_profile_tests auction_resources)
+    add_test(NAME profile_http COMMAND auction_profile_tests)
+    set_tests_properties(profile_http PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
+
+    add_executable(auction_concurrent_bid_tests tests/ConcurrentBidTests.cpp)
+    target_link_libraries(auction_concurrent_bid_tests PRIVATE auction_http auction_database)
+    add_dependencies(auction_concurrent_bid_tests auction_resources)
+    add_test(NAME concurrent_bidding COMMAND auction_concurrent_bid_tests)
+    set_tests_properties(concurrent_bidding PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
+
+    add_executable(auction_websocket_tests tests/WebSocketTests.cpp)
+    target_link_libraries(auction_websocket_tests PRIVATE auction_http auction_database)
+    add_dependencies(auction_websocket_tests auction_resources)
+    add_test(NAME websocket_live_updates COMMAND auction_websocket_tests)
+    set_tests_properties(websocket_live_updates PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test-working-directory" TIMEOUT 60)
 endif()

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,8 @@ struct RegisterResult
 {
     AuthResult auth;
     bool emailDeliveryFailed = false;
+    std::optional<std::string> devCode;
+    std::string emailDeliveryMode = "provider";
 };
 struct Bid
 {

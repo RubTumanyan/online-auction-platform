@@ -88,7 +88,7 @@ void handle(std::function<void(const drogon::HttpResponsePtr&)>& callback, Work&
     }
     catch (const std::exception& error)
     {
-        LOG_ERROR << "Authentication/bidding request failed: " << error.what();
+        LOG_ERROR << "[AUTH] Authentication/bidding request failed: " << error.what();
         callback(errorResponse(drogon::k500InternalServerError, "Internal server error"));
     }
 }
@@ -115,6 +115,8 @@ void AuthBidController::registerUser(const drogon::HttpRequestPtr& request,
         responseBody["user"] = userJson(result.auth.user);
         responseBody["token"] = result.auth.token;
         responseBody["emailDeliveryFailed"] = result.emailDeliveryFailed;
+        if (result.devCode) responseBody["devCode"] = *result.devCode;
+        responseBody["emailDeliveryMode"] = result.emailDeliveryMode;
         auto response = drogon::HttpResponse::newHttpJsonResponse(responseBody); response->setStatusCode(drogon::k201Created); callback(response);
     });
 }

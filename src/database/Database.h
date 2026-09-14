@@ -19,12 +19,14 @@ class Statement final
     Statement(const Statement&) = delete;
     Statement& operator=(const Statement&) = delete;
     void bind(int index, std::int64_t value);
+    void bind(int index, double value);
     void bind(int index, const std::string& value);
     void bindNull(int index);
     bool step();
     void run();
     void reset();
     std::int64_t integer(int column) const;
+    double real(int column) const;
     std::string text(int column) const;
 
   private:

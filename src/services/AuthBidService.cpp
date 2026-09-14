@@ -129,6 +129,7 @@ models::RegisterResult AuthService::registerUser(const std::string& username, co
         const models::User user{connection.lastInsertRowId(), username, email, false};
         session = createSession(connection, user);
         connection.execute("COMMIT");
+        LOG_INFO << "[AUTH] Registered user '" << username << "' (id=" << user.id << ", emailVerified=false)";
     }
     catch (...)
     {
@@ -136,20 +137,44 @@ models::RegisterResult AuthService::registerUser(const std::string& username, co
         throw;
     }
     bool deliveryFailed = false;
+    std::string code;
     try
     {
-        const auto code = security::generateVerificationCode();
+        code = security::generateVerificationCode();
         insertVerificationCode(connection, session.user.id, code, /*sendCount=*/1);
         verificationEmailSender().sendVerificationCode(session.user.email, code);
     }
     catch (const std::exception& error)
     {
-        LOG_ERROR << "Verification email delivery failed for " << session.user.email << ": " << error.what();
+        LOG_ERROR << "[EMAIL] Verification email delivery failed for userId=" << session.user.id
+                  << ": " << error.what();
         database::Connection cleanup(databasePath_);
         deleteVerificationCode(cleanup, session.user.id);
         deliveryFailed = true;
     }
-    return {session, deliveryFailed};
+    const auto mode = [&]{
+        const auto& email = drogon::app().getCustomConfig().get("email", Json::Value(Json::objectValue));
+        std::string providerUrl = email.get("provider_url", "").asString();
+        std::string apiToken = email.get("api_token", "").asString();
+        if (apiToken.empty())
+        {
+            const char* envToken = std::getenv("AUCTION_EMAIL_API_TOKEN");
+            if (envToken && envToken != std::string{})
+                apiToken = envToken;
+        }
+        if (providerUrl.empty() || apiToken.empty())
+            return std::string("dev");
+        return std::string("provider");
+    }();
+    models::RegisterResult regResult;
+    regResult.auth = session;
+    regResult.emailDeliveryFailed = deliveryFailed;
+    if (!deliveryFailed && mode == "dev")
+    {
+        regResult.devCode = code;
+    }
+    regResult.emailDeliveryMode = mode;
+    return regResult;
 }
 
 models::AuthResult AuthService::login(const std::string& username, const std::string& password) const
@@ -160,8 +185,14 @@ models::AuthResult AuthService::login(const std::string& username, const std::st
         "SELECT id,username,email,password_hash,email_verified FROM users WHERE username = ? COLLATE NOCASE");
     query.bind(1, username);
     if (!query.step() || !security::verifyPassword(password, query.text(3)))
+    {
+        LOG_WARN << "[AUTH] Failed login attempt for '" << username << "'";
         throw ApiError(ApiErrorKind::unauthorized, "Invalid credentials");
-    return createSession(connection, {query.integer(0), query.text(1), query.text(2), query.integer(4) != 0});
+    }
+    const auto user = models::User{query.integer(0), query.text(1), query.text(2), query.integer(4) != 0};
+    const auto result = createSession(connection, user);
+    LOG_INFO << "[AUTH] User '" << result.user.username << "' (id=" << result.user.id << ") logged in";
+    return result;
 }
 
 models::User AuthService::authenticate(const std::string& authorization) const
@@ -262,7 +293,7 @@ void AuthService::resendVerification(const std::string& email) const
     catch (const std::exception& error)
     {
         deleteVerificationCode(connection, userId);
-        LOG_ERROR << "Resent verification email failed for " << email << ": " << error.what();
+        LOG_ERROR << "[EMAIL] Resent verification email failed for userId=" << userId << ": " << error.what();
         throw ApiError(ApiErrorKind::emailFailure, "Email could not be delivered; please try again later.");
     }
 }
@@ -321,6 +352,7 @@ models::PlacedBid BidService::place(std::int64_t lotId, std::int64_t userId, std
     if (amount <= 0) throw ApiError(ApiErrorKind::invalid, "amount must be a positive integer");
     database::Connection connection(databasePath_);
     connection.execute("BEGIN IMMEDIATE");
+    LOG_DEBUG << "[TX] BidService::place BEGIN IMMEDIATE lot=" << lotId;
     try
     {
         auto lot = connection.prepare(
@@ -356,10 +388,14 @@ models::PlacedBid BidService::place(std::int64_t lotId, std::int64_t userId, std
         created.bind(1, bidId); created.step();
         models::PlacedBid result{{bidId, lotId, bidder, amount, created.text(0)}, amount};
         connection.execute("COMMIT");
+        LOG_DEBUG << "[TX] BidService::place COMMIT lot=" << lotId;
+        LOG_INFO << "[BID] Lot " << lotId << " new highest bid " << amount
+                 << " cents by '" << bidder << "'";
         return result;
     }
     catch (...)
     {
+        LOG_DEBUG << "[TX] BidService::place ROLLBACK lot=" << lotId;
         connection.execute("ROLLBACK");
         throw;
     }

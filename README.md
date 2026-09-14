@@ -57,6 +57,8 @@ WebSocket connection or reconnection.
 | `GET` | `/api/categories` | List categories |
 | `GET` | `/api/lots` | Paginated active catalog with validated filters/sort |
 | `GET` | `/api/lots/{id}` | Authoritative lot details and lifecycle state |
+| `POST` | `/api/lots/{id}/view` | Record an authenticated user's view (feeds personalized recommendations) |
+| `GET` | `/api/recommendations?limit=8` | Content-based TF-IDF personalized or trending recommendations |
 | `POST` | `/api/auth/register` | Create a user and session |
 | `POST` | `/api/auth/login` | Create a session |
 | `GET` | `/api/auth/me` | Resolve a bearer session |
@@ -248,6 +250,11 @@ the current page, search, category, and sort order. Search requests are debounce
 one-second timer updates all visible card countdowns, and the details page cleans up its
 timer when navigation occurs.
 
+Price inputs are displayed and shared in **whole dollars** (`?min_price=50&max_price=200`);
+the UI converts them ×100 to the integer-cent API parameters when loading lots, and announces
+the URL state in dollars. The API itself always uses cents, so when writing links by hand use
+dollars (they are multiplied by 100 on load, exactly like the inline inputs).
+
 Frontend files:
 
 ```text
@@ -408,6 +415,17 @@ Two-browser manual check:
 Known limitations: subscriptions are process-local, so multi-process deployment would
 need a shared broker; catalog cards do not receive WebSocket updates; and the demo client
 stores its bearer token in `localStorage`.
+
+## Recommendations
+
+`GET /api/recommendations?limit=N` returns content-based suggestions built from TF-IDF
+term vectors over active lot text (category + title + description) with cosine
+similarity. Users with any view or bid history get a personalized Top-N
+(`"personalized": true`, excluding lots they already bid on); everyone else gets a
+cheap cold-start fallback of trending and ending-soon lots. Views arrive via
+`POST /api/lots/{id}/view`, which the lot-details page sends once per session per lot
+when the viewer is authenticated. The TF-IDF corpus is cached and rebuilt only when the
+set of active lots changes, and cold-start requests never build the model at all.
 
 ## Phase 2 image import
 

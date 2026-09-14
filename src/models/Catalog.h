@@ -35,6 +35,8 @@ struct LotQuery
     int limit = 20;
     std::optional<std::int64_t> categoryId;
     std::optional<std::string> search;
+    std::optional<std::int64_t> minPriceCents;
+    std::optional<std::int64_t> maxPriceCents;
     std::string sortBy = "end_time";
     std::string order = "asc";
 };

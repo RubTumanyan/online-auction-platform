@@ -38,13 +38,26 @@ EmailSettings readEmailSettings()
     settings.providerUrl = email.get("provider_url", "https://api.resend.com").asString();
     settings.endpointPath = email.get("endpoint_path", "/emails").asString();
     settings.from = email.get("from", "QuickBid <no-reply@example.com>").asString();
-    settings.apiToken = environmentVariable(email.get("api_token_env", "AUCTION_EMAIL_API_TOKEN").asString());
+    settings.apiToken = email.get("api_token", "").asString();
+    if (settings.apiToken.empty())
+    {
+        settings.apiToken = environmentVariable(email.get("api_token_env", "AUCTION_EMAIL_API_TOKEN").asString());
+    }
     if (settings.providerUrl.empty() || settings.endpointPath.empty() || settings.from.empty())
         settings.providerUrl.clear();
     return settings;
 }
 
-// Resend-compatible transactional email API. The same JSON shape is used by
+std::string emailDeliveryMode()
+{
+    const auto& email = drogon::app().getCustomConfig().get("email", Json::Value(Json::objectValue));
+    if (email.get("provider_url", "").asString().empty() ||
+        environmentVariable(email.get("api_token_env", "AUCTION_EMAIL_API_TOKEN").asString()).empty())
+    {
+        return "dev";
+    }
+    return "provider";
+}
 // several simple providers; the endpoint and credentials are configurable.
 class HttpEmailSender final : public EmailSender
 {
@@ -107,7 +120,7 @@ class DevLogEmailSender final : public EmailSender
         char stamp[32];
         std::strftime(stamp, sizeof(stamp), "%Y-%m-%dT%H:%M:%SZ", &utc);
         const auto entry = std::string(stamp) + " " + email + " " + code;
-        LOG_INFO << "Verification code for " << email << ": " << code;
+        LOG_INFO << "[EMAIL] Dev-mode verification code for " << email << ": " << code;
         std::lock_guard<std::mutex> lock(mutex_);
         try
         {

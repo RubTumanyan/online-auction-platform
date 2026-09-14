@@ -38,7 +38,9 @@ void bindFilters(database::Statement& statement, const models::LotQuery& query)
 {
     int parameter = 1;
     if (query.categoryId) statement.bind(parameter++, *query.categoryId);
-    if (query.search) statement.bind(parameter, "%" + escapeLike(*query.search) + "%");
+    if (query.search) statement.bind(parameter++, "%" + escapeLike(*query.search) + "%");
+    if (query.minPriceCents) statement.bind(parameter++, *query.minPriceCents);
+    if (query.maxPriceCents) statement.bind(parameter++, *query.maxPriceCents);
 }
 
 std::string filteredSql(const models::LotQuery& query)
@@ -48,6 +50,8 @@ std::string filteredSql(const models::LotQuery& query)
                       " AND a.ends_at > strftime('%Y-%m-%dT%H:%M:%SZ','now')";
     if (query.categoryId) sql += " AND a.category_id = ?";
     if (query.search) sql += " AND a.title LIKE ? ESCAPE '\\' COLLATE NOCASE";
+    if (query.minPriceCents) sql += " AND a.current_price_cents >= ?";
+    if (query.maxPriceCents) sql += " AND a.current_price_cents <= ?";
     return sql;
 }
 }
@@ -91,7 +95,8 @@ models::LotPage CatalogRepository::activeLots(const models::LotQuery& query) con
         "a.current_price_cents,a.created_at,a.ends_at,a.status,a.closed_at" + filters +
         " ORDER BY " + sortColumn + direction + ", a.id" + direction + " LIMIT ? OFFSET ?");
     bindFilters(statement, query);
-    int parameter = 1 + (query.categoryId ? 1 : 0) + (query.search ? 1 : 0);
+    int parameter = 1 + (query.categoryId ? 1 : 0) + (query.search ? 1 : 0) +
+                    (query.minPriceCents ? 1 : 0) + (query.maxPriceCents ? 1 : 0);
     statement.bind(parameter++, static_cast<std::int64_t>(query.limit));
     statement.bind(parameter, static_cast<std::int64_t>(query.page - 1) * query.limit);
 

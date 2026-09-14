@@ -22,11 +22,13 @@ let verificationCountdownTimer = null;
 let verificationCooldownUntil = 0;
 
 function token() { return localStorage.getItem(authStorageKey) || ""; }
+const profileNav = document.querySelector("#nav-profile");
 function notify() { dispatchEvent(new CustomEvent("authchange", { detail: authUser })); }
 function renderAuth() {
   const authenticated = authUser !== null;
   authElements.username.hidden = !authenticated; authElements.logout.hidden = !authenticated; authElements.open.hidden = authenticated;
   authElements.username.textContent = authenticated ? authUser.username : "";
+  if (profileNav) profileNav.hidden = !authenticated;
   if (!authenticated) hideVerification();
   else if (!authUser.emailVerified) showVerification();
   else hideVerification();
@@ -40,6 +42,7 @@ function setMode(mode) {
   authElements.switchMode.textContent = registering ? "Already registered? Login" : "Need an account? Register";
   authElements.password.autocomplete = registering ? "new-password" : "current-password";
   authElements.email.hidden = !registering; authElements.emailLabel.hidden = !registering;
+  authElements.email.required = registering;
   authElements.message.textContent = "";
 }
 async function authRequest(path, options = {}) {
@@ -105,7 +108,10 @@ authElements.form.addEventListener("submit", async event => {
     const result = await authRequest(`/api/auth/${authMode}`, { method: "POST", body: JSON.stringify(payload) });
     localStorage.setItem(authStorageKey, result.token); authUser = result.user; authElements.form.reset(); authElements.dialog.close(); renderAuth();
     if (authUser && !authUser.emailVerified) {
+      const devMode = result.emailDeliveryMode === "dev" && result.devCode;
       showVerification(result.emailDeliveryFailed ? "We couldn’t email your verification code. Use Resend code." : "");
+      if (devMode) verification.message.textContent += ` Demo mode: your code is ${result.devCode}.`;
+      if (!result.emailDeliveryFailed) startVerificationCooldown(60);
     }
   } catch (error) { authElements.message.textContent = error.message; }
   finally { authElements.submit.disabled = false; }

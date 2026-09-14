@@ -248,6 +248,18 @@ function connectLiveUpdates() {
   });
 }
 
+const recordedViews = new Set();
+
+function recordView(lotId) {
+  const token = window.auctionAuth?.token();
+  if (!token || recordedViews.has(lotId)) return;
+  recordedViews.add(lotId);
+  fetch(`/api/lots/${encodeURIComponent(lotId)}/view`, {
+    method: "POST",
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` }
+  }).catch(() => recordedViews.delete(lotId));
+}
+
 async function loadLot() {
   currentId = new URLSearchParams(location.search).get("id");
   if (!/^[1-9]\d*$/.test(currentId ?? "")) { showError("Invalid lot address", "This link does not contain a valid positive lot ID."); return; }
@@ -257,7 +269,7 @@ async function loadLot() {
     let body = null; try { body = await response.json(); } catch { /* HTTP status still provides a useful error. */ }
     if (response.status === 404) { showError("Lot not found", "This lot may have been removed or the address may be incorrect."); return; }
     if (!response.ok) throw new Error(body?.error || `Request failed with status ${response.status}`);
-    renderLot(body); await loadBidHistory();
+    renderLot(body); await loadBidHistory(); recordView(body.id ?? Number(currentId));
   } catch (error) { showError("Unable to load this lot", error.message || "Check your connection and try again."); }
 }
 

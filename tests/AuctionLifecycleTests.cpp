@@ -51,7 +51,7 @@ DROGON_TEST(AutomaticClosingAndRaceSafety)
     CHECK(placed.currentPrice == 3175);
     {
         auction::database::Connection database(databasePath);
-        database.execute("UPDATE auctions SET ends_at='2026-09-12T00:00:01Z' WHERE id=1");
+        database.execute("UPDATE auctions SET starts_at='2026-09-01T00:00:00Z', ends_at='2026-09-12T00:00:01Z' WHERE id=1");
     }
     const auto winnerClosures = closer.closeExpired();
     REQUIRE(winnerClosures.size() == 1);
@@ -71,7 +71,7 @@ DROGON_TEST(AutomaticClosingAndRaceSafety)
 
     {
         auction::database::Connection database(databasePath);
-        database.execute("UPDATE auctions SET ends_at='2026-09-12T00:00:01Z' WHERE id=2");
+        database.execute("UPDATE auctions SET starts_at='2026-09-01T00:00:00Z', ends_at='2026-09-12T00:00:01Z' WHERE id=2");
     }
     const auto noBidClosures = closer.closeExpired();
     REQUIRE(noBidClosures.size() == 1);
@@ -84,7 +84,7 @@ DROGON_TEST(AutomaticClosingAndRaceSafety)
 
     {
         auction::database::Connection database(databasePath);
-        database.execute("UPDATE auctions SET ends_at='2026-09-12T00:00:01Z' WHERE id=3");
+        database.execute("UPDATE auctions SET starts_at='2026-09-01T00:00:00Z', ends_at='2026-09-12T00:00:01Z' WHERE id=3");
     }
     std::barrier start(2);
     std::atomic<bool> bidRejected{false};

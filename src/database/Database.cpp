@@ -1,5 +1,6 @@
 #include "database/Database.h"
 
+#include <trantor/utils/Logger.h>
 #include <json/json.h>
 #include <sqlite3.h>
 
@@ -79,7 +80,7 @@ void seed(Connection& connection, const std::filesystem::path& directory)
         auction.bind(2, row["title"].asString());
         auction.bind(3, row["description"].asString());
         auction.bind(4, row["image_url"].asString());
-        auction.bind(5, categoryId);
+        auction.bind(5, static_cast<std::int64_t>(categoryId));
         auction.bind(6, row["starting_price_cents"].asInt64());
         auction.bind(7, row["starting_price_cents"].asInt64());
         auction.bind(8, row["starts_at"].asString());
@@ -118,6 +119,10 @@ void Statement::bind(int index, std::int64_t value)
 {
     check(sqlite3_bind_int64(statement_, index, value), sqlite3_db_handle(statement_));
 }
+void Statement::bind(int index, double value)
+{
+    check(sqlite3_bind_double(statement_, index, value), sqlite3_db_handle(statement_));
+}
 void Statement::bind(int index, const std::string& value)
 {
     check(sqlite3_bind_text(statement_, index, value.data(), static_cast<int>(value.size()), SQLITE_TRANSIENT),
@@ -145,6 +150,7 @@ void Statement::reset()
     check(sqlite3_clear_bindings(statement_), sqlite3_db_handle(statement_));
 }
 std::int64_t Statement::integer(int column) const { return sqlite3_column_int64(statement_, column); }
+double Statement::real(int column) const { return sqlite3_column_double(statement_, column); }
 std::string Statement::text(int column) const
 {
     const auto* text = sqlite3_column_text(statement_, column);
@@ -202,9 +208,10 @@ void initialize(Connection& connection, const std::filesystem::path& dataDirecto
     connection.execute("BEGIN IMMEDIATE");
     try
     {
-        auto version = connection.scalar("PRAGMA user_version");
+auto version = connection.scalar("PRAGMA user_version");
         if (version == 0)
         {
+            LOG_INFO << "[DB] Creating fresh database: applying schema.sql and seeding 10 categories / 1000 lots";
             connection.executeScript(readFile(dataDirectory / "schema.sql"));
             seed(connection, dataDirectory);
             connection.execute("PRAGMA user_version = 1");
@@ -212,27 +219,38 @@ void initialize(Connection& connection, const std::filesystem::path& dataDirecto
         }
         if (version == 1)
         {
+            LOG_INFO << "[DB] Applying migration 002_auth_bidding.sql";
             connection.executeScript(readFile(dataDirectory / "migrations" / "002_auth_bidding.sql"));
             connection.execute("PRAGMA user_version = 2");
             version = 2;
         }
 if (version == 2)
         {
+            LOG_INFO << "[DB] Applying migration 003_auction_lifecycle.sql";
             connection.executeScript(readFile(dataDirectory / "migrations" / "003_auction_lifecycle.sql"));
             connection.execute("PRAGMA user_version = 3");
             version = 3;
         }
         if (version == 3)
         {
+            LOG_INFO << "[DB] Applying migration 004_email_verification.sql";
             connection.executeScript(readFile(dataDirectory / "migrations" / "004_email_verification.sql"));
             connection.execute("PRAGMA user_version = 4");
             version = 4;
         }
-        if (version != 4)
+        if (version == 4)
+        {
+            LOG_INFO << "[DB] Applying migration 005_user_interactions.sql";
+            connection.executeScript(readFile(dataDirectory / "migrations" / "005_user_interactions.sql"));
+            connection.execute("PRAGMA user_version = 5");
+            version = 5;
+        }
+        if (version != 5)
         {
             throw std::runtime_error("Unsupported database version: " + std::to_string(version));
         }
         connection.execute("COMMIT");
+        LOG_INFO << "[DB] Database schema is up to date (version " << version << ")";
     }
     catch (...)
     {

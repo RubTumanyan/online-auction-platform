@@ -10,7 +10,7 @@
     <title>QuickBid — Live catalog</title>
     <script src="/catalog.js" defer></script>
     <script src="/auth.js" defer></script>
-    <script src="/health.js" defer></script>
+    <script src="/recommend.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#catalog">Skip to catalog</a>
@@ -21,9 +21,9 @@
       </a>
       <nav aria-label="Primary navigation">
         <a class="nav-link active" href="/" aria-current="page">Live catalog</a>
-
+        <a class="nav-link" id="nav-profile" href="/profile.html" hidden>My bids</a>
       </nav>
-      <p class="server-status" id="server-status" role="status"><span class="server-status-dot" aria-hidden="true"></span><span id="server-status-text">Checking…</span></p>
+      
       <div class="auth-controls">
         <span id="auth-username" hidden></span>
         <button class="header-button" id="auth-open" type="button">Login / Register</button>
@@ -54,6 +54,11 @@
         </div>
         <p class="intro-copy">Explore one-of-a-kind pieces across ten collections. Browse the photographs, follow the bidding, and find your next favorite.</p>
       </section>
+      <section class="recommendations" id="recommendations" aria-labelledby="recommendations-title" hidden>
+        <h2 id="recommendations-title">Recommended for you</h2>
+        <p class="recommendations-copy" id="recommendations-copy"></p>
+        <div class="recommend-grid" id="recommend-grid"></div>
+      </section>
       <section class="catalog-shell" aria-label="Auction catalog">
         <form class="catalog-controls" id="catalog-controls" role="search">
           <div class="field search-field">
@@ -68,6 +73,20 @@
             <select id="category" name="category_id">
               <option value="">All categories</option>
             </select>
+          </div>
+          <div class="field price-field">
+            <label for="min-price">Min price</label>
+            <div class="input-wrap price-wrap">
+              <span class="price-prefix" aria-hidden="true">$</span>
+              <input id="min-price" name="min_price" type="number" min="0" step="1" inputmode="numeric" placeholder="Any">
+            </div>
+          </div>
+          <div class="field price-field">
+            <label for="max-price">Max price</label>
+            <div class="input-wrap price-wrap">
+              <span class="price-prefix" aria-hidden="true">$</span>
+              <input id="max-price" name="max_price" type="number" min="0" step="1" inputmode="numeric" placeholder="Any">
+            </div>
           </div>
           <div class="field">
             <label for="sort">Sort by</label>

@@ -3,6 +3,7 @@
 
 #include "database/Database.h"
 #include "runtime/RuntimePaths.h"
+#include "security/HttpSecurity.h"
 #include "services/AuthBidService.h"
 #include "services/EmailDelivery.h"
 
@@ -216,7 +217,9 @@ int main(int argc, char* argv[])
     }
     auction::services::installVerificationEmailSender(std::make_unique<NeverSendsEmail>());
     auction::services::AuthService(databasePath).ensureDemoUsers();
+    auction::security::relaxSecurityForTests(config);
     drogon::app().loadConfigJson(config);
+    auction::security::registerHttpSecurity();
     std::thread server([] { drogon::app().run(); });
     while (!drogon::app().isRunning()) std::this_thread::sleep_for(std::chrono::milliseconds(10));
     const auto result = drogon::test::run(argc, argv);

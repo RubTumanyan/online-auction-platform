@@ -2,6 +2,8 @@
 
 #include "database/Database.h"
 
+#include <trantor/utils/Logger.h>
+
 #include <cstdint>
 #include <utility>
 
@@ -61,6 +63,8 @@ std::vector<models::ClosedLot> AuctionCloseService::closeExpired() const
             closed.push_back(std::move(item));
         }
         connection.execute("COMMIT");
+        if (!closed.empty())
+            LOG_INFO << "[CLOSE] Closed " << closed.size() << " expired lot(s)";
         return closed;
     }
     catch (...)

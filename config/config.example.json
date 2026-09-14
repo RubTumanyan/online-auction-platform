@@ -4,8 +4,29 @@
     "email": {
       "provider_url": "https://api.resend.com",
       "endpoint_path": "/emails",
-      "from": "QuickBid <onboarding@resend.dev>",
+      "from": "QuickBid <no-reply@bid-quick.site>",
       "api_token_env": "AUCTION_EMAIL_API_TOKEN"
+    },
+    "security": {
+      "allowed_hosts": [
+        "127.0.0.1",
+        "localhost",
+        "bid-quick.site",
+        "www.bid-quick.site",
+        "nanny-fedora-alto.ngrok-free.dev"
+      ],
+      "rate_limits": {
+        "auth_login":    { "max": 5,   "window_seconds": 60 },
+        "auth_register": { "max": 3,   "window_seconds": 300 },
+        "auth_resend":   { "max": 5,   "window_seconds": 60 },
+        "auth_verify":   { "max": 10,  "window_seconds": 60 },
+        "bid":           { "max": 20,  "window_seconds": 60 },
+        "ws":            { "max": 200, "window_seconds": 60 },
+        "general":       { "max": 1200,"window_seconds": 60 }
+      },
+      "ws_max_connections": 1000,
+      "ws_max_connections_per_ip": 20,
+      "client_max_body_bytes": 65536
     }
   },
   "listeners": [{ "address": "127.0.0.1", "port": 8080, "https": false }],

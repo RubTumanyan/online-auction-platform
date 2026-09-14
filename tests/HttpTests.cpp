@@ -2,6 +2,7 @@
 #include <drogon/drogon_test.h>
 
 #include "runtime/RuntimePaths.h"
+#include "security/HttpSecurity.h"
 
 #include <array>
 #include <fstream>
@@ -74,7 +75,9 @@ int main(int argc, char* argv[])
     std::ifstream input(auction::prepareRuntime());
     input >> config;
     config["listeners"][0]["port"] = 18849;
+    auction::security::relaxSecurityForTests(config);
     drogon::app().loadConfigJson(config);
+    auction::security::registerHttpSecurity();
 
     std::promise<void> ready;
     auto started = ready.get_future();

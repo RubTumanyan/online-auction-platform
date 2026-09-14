@@ -2,7 +2,9 @@
 
 #include "models/AuctionLifecycle.h"
 #include "models/Catalog.h"
+#include "services/AuthBidService.h"
 #include "services/CatalogService.h"
+#include "services/RecommendationService.h"
 
 #include <charconv>
 #include <cstdint>
@@ -41,6 +43,15 @@ std::optional<int> positiveInteger(std::string_view value)
     int result = 0;
     const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), result);
     if (error != std::errc{} || end != value.data() + value.size() || result <= 0) return std::nullopt;
+    return result;
+}
+
+std::optional<std::int64_t> nonNegativeInt64(std::string_view value)
+{
+    if (value.empty()) return std::nullopt;
+    std::int64_t result = 0;
+    const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), result);
+    if (error != std::errc{} || end != value.data() + value.size() || result < 0) return std::nullopt;
     return result;
 }
 
@@ -147,6 +158,24 @@ void CatalogController::lots(
                 return callback(jsonError(drogon::k400BadRequest, "search must not exceed 200 characters"));
             query.search = search;
         }
+        const auto minPriceParam = request->getParameter("min_price");
+        const auto maxPriceParam = request->getParameter("max_price");
+        if (!minPriceParam.empty())
+        {
+            const auto value = nonNegativeInt64(minPriceParam);
+            if (!value)
+                return callback(jsonError(drogon::k400BadRequest, "min_price must be a non-negative integer"));
+            query.minPriceCents = *value;
+        }
+        if (!maxPriceParam.empty())
+        {
+            const auto value = nonNegativeInt64(maxPriceParam);
+            if (!value)
+                return callback(jsonError(drogon::k400BadRequest, "max_price must be a non-negative integer"));
+            query.maxPriceCents = *value;
+        }
+        if (query.minPriceCents && query.maxPriceCents && *query.minPriceCents > *query.maxPriceCents)
+            return callback(jsonError(drogon::k400BadRequest, "min_price must not exceed max_price"));
         if (!sortBy.empty()) query.sortBy = sortBy;
         if (query.sortBy != "current_price" && query.sortBy != "end_time" && query.sortBy != "title")
             return callback(jsonError(drogon::k400BadRequest,
@@ -160,6 +189,12 @@ void CatalogController::lots(
             return callback(jsonError(drogon::k400BadRequest, "category_id does not exist"));
 
         const auto pageResult = service.lots(query);
+        LOG_DEBUG << "[CATALOG] Lots query page=" << query.page << " limit=" << query.limit
+                  << " category=" << (query.categoryId ? std::to_string(*query.categoryId) : "all")
+                  << " sortBy=" << query.sortBy << " order=" << query.order
+                  << " minPrice=" << (query.minPriceCents ? std::to_string(*query.minPriceCents) : "-")
+                  << " maxPrice=" << (query.maxPriceCents ? std::to_string(*query.maxPriceCents) : "-")
+                  << " search=\"" << query.search.value_or("") << "\" total=" << pageResult.total;
         Json::Value body;
         body["page"] = pageResult.page;
         body["limit"] = pageResult.limit;
@@ -191,6 +226,84 @@ void CatalogController::lot(
     catch (const std::exception&)
     {
         callback(jsonError(drogon::k500InternalServerError, "Unable to load lot"));
+    }
+}
+
+void CatalogController::recommendations(
+    const drogon::HttpRequestPtr& request,
+    std::function<void(const drogon::HttpResponsePtr&)>&& callback) const
+{
+    try
+    {
+        int limit = 8;
+        const auto limitParameter = request->getParameter("limit");
+        if (!limitParameter.empty())
+        {
+            const auto value = positiveInteger(limitParameter);
+            if (!value || *value > 20)
+                return callback(jsonError(drogon::k400BadRequest, "limit must be an integer from 1 to 20"));
+            limit = *value;
+        }
+
+        const services::RecommendationService service(databasePath());
+        services::RecommendationResult result;
+
+        // Without an Authorization header we serve the non-personalized cold-start list.
+        const auto authorization = request->getHeader("authorization");
+        if (authorization.empty())
+        {
+            result = service.recommendations(0, limit);
+        }
+        else
+        {
+            const auto user = services::AuthService(databasePath()).authenticate(authorization);
+            result = service.recommendations(user.id, limit);
+        }
+
+        Json::Value body;
+        body["personalized"] = result.personalized;
+        body["lots"] = Json::arrayValue;
+        for (const auto& lot : result.lots) body["lots"].append(lotJson(lot, false));
+        callback(drogon::HttpResponse::newHttpJsonResponse(body));
+    }
+    catch (const services::ApiError& error)
+    {
+        if (error.kind() == services::ApiErrorKind::unauthorized)
+            return callback(jsonError(drogon::k401Unauthorized, "Invalid or expired token"));
+        callback(jsonError(drogon::k500InternalServerError, "Unable to load recommendations"));
+    }
+    catch (const std::exception&)
+    {
+        callback(jsonError(drogon::k500InternalServerError, "Unable to load recommendations"));
+    }
+}
+
+void CatalogController::trackView(
+    const drogon::HttpRequestPtr& request,
+    std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+    std::string id) const
+{
+    try
+    {
+        const auto lotId = positiveInteger(id);
+        if (!lotId) return callback(jsonError(drogon::k400BadRequest, "lot id must be a positive integer"));
+        const auto user = services::AuthService(databasePath()).authenticate(request->getHeader("authorization"));
+        services::RecommendationService(databasePath()).recordView(user.id, *lotId);
+        auto response = drogon::HttpResponse::newHttpResponse();
+        response->setStatusCode(drogon::k204NoContent);
+        callback(response);
+    }
+    catch (const services::ApiError& error)
+    {
+        if (error.kind() == services::ApiErrorKind::unauthorized)
+            return callback(jsonError(drogon::k401Unauthorized, "Invalid or expired token"));
+        if (error.kind() == services::ApiErrorKind::notFound)
+            return callback(jsonError(drogon::k404NotFound, "Lot not found"));
+        callback(jsonError(drogon::k500InternalServerError, "Unable to record view"));
+    }
+    catch (const std::exception&)
+    {
+        callback(jsonError(drogon::k500InternalServerError, "Unable to record view"));
     }
 }
 }
