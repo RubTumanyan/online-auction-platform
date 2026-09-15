@@ -87,7 +87,7 @@ out/
 CMakeUserPresets.json
 CMakeSettings.json
 config/config.json
-runtime/
+/runtime/
 
 # SQLite runtime databases and journals
 *.sqlite
