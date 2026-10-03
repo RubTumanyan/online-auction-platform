@@ -6,15 +6,15 @@
     <meta name="description" content="View auction lot details on QuickBid.">
     <meta name="theme-color" content="#101827">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101827'/%3E%3Ccircle cx='30' cy='28' r='13' fill='none' stroke='%23d7a84b' stroke-width='7'/%3E%3Cpath d='M39 37 51 49' stroke='%23d7a84b' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="./styles.css">
     <title>Lot details — QuickBid</title>
-    <script src="/auth.js" defer></script><script src="/lot.js" defer></script><script src="/health.js" defer></script>
+    <script src="./auth.js" defer></script><script src="./lot.js" defer></script><script src="./health.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#lot-details">Skip to lot details</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="QuickBid home"><span class="brand-mark" aria-hidden="true">Q</span><span>Quick<b>Bid</b></span></a>
-      <nav aria-label="Primary navigation"><a class="nav-link" href="/">Live catalog</a></nav>
+      <a class="brand" href="../" aria-label="QuickBid home"><span class="brand-mark" aria-hidden="true">Q</span><span>Quick<b>Bid</b></span></a>
+      <nav aria-label="Primary navigation"><a class="nav-link" href="../">Live catalog</a></nav>
       
       <div class="auth-controls"><span id="auth-username" hidden></span><button class="header-button" id="auth-open" type="button">Login / Register</button><button class="header-button" id="auth-logout" type="button" hidden>Logout</button></div>
     </header>
@@ -35,7 +35,7 @@
       </form>
     </section>
     <main class="detail-main" id="lot-details">
-      <a class="back-link" href="/"><span aria-hidden="true">←</span> Back to catalog</a>
+      <a class="back-link" href="../"><span aria-hidden="true">←</span> Back to catalog</a>
       <div class="detail-loading" id="detail-loading" aria-label="Loading lot details">
         <div class="detail-image-skeleton"></div>
         <div class="detail-copy-skeleton"><span></span><span></span><span></span><span></span></div>
@@ -44,7 +44,7 @@
         <span class="state-icon" aria-hidden="true">!</span>
         <h1 id="detail-error-title">Lot unavailable</h1>
         <p id="detail-error-message">We couldn’t find this auction lot.</p>
-        <a class="button button-primary" href="/">Browse live lots</a>
+        <a class="button button-primary" href="../">Browse live lots</a>
       </section>
       <article class="lot-detail" id="detail-content" hidden>
         <div class="detail-media">

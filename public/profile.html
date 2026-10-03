@@ -6,22 +6,22 @@
     <meta name="description" content="Your bidding activity on QuickBid.">
     <meta name="theme-color" content="#101827">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101827'/%3E%3Ccircle cx='30' cy='28' r='13' fill='none' stroke='%23d7a84b' stroke-width='7'/%3E%3Cpath d='M39 37 51 49' stroke='%23d7a84b' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="./styles.css">
     <title>QuickBid — My bids</title>
-    <script src="/profile.js" defer></script>
-    <script src="/auth.js" defer></script>
-    <script src="/health.js" defer></script>
+    <script src="./profile.js" defer></script>
+    <script src="./auth.js" defer></script>
+    <script src="./health.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#profile-main">Skip to profile</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="QuickBid home">
+      <a class="brand" href="../" aria-label="QuickBid home">
         <span class="brand-mark" aria-hidden="true">Q</span>
         <span>Quick<b>Bid</b></span>
       </a>
       <nav aria-label="Primary navigation">
-        <a class="nav-link" href="/">Live catalog</a>
-        <a class="nav-link active" id="nav-profile" href="/profile.html" aria-current="page" hidden>My bids</a>
+        <a class="nav-link" href="../">Live catalog</a>
+        <a class="nav-link active" id="nav-profile" href="./profile.html" aria-current="page" hidden>My bids</a>
       </nav>
       
       <div class="auth-controls">
@@ -76,7 +76,7 @@
           <span class="state-icon" aria-hidden="true">0</span>
           <h2 id="profile-empty-title">No active bids</h2>
           <p id="profile-empty-copy">When you place a bid on a live lot it will show up here.</p>
-          <a class="button button-secondary" href="/">Browse the catalog</a>
+          <a class="button button-secondary" href="../">Browse the catalog</a>
         </section>
         <p class="profile-summary-line" id="profile-summary" hidden></p>
         <div class="lot-grid profile-grid" id="profile-grid"></div>

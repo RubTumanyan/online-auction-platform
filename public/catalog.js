@@ -1,6 +1,7 @@
 "use strict";
 
 const PAGE_SIZE = 20;
+const catalogScriptBase = new URL(".", document.currentScript.src);
 const elements = Object.fromEntries([
   "form", "search", "category", "sort", "result-count", "category-notice", "loading-state",
   "error-state", "error-message", "empty-state", "lot-grid", "pagination", "previous-page",
@@ -43,7 +44,7 @@ function writeStateToUrl() {
   if (state.maxPrice !== null) params.set("max_price", String(state.maxPrice));
   if (state.sortBy !== "end_time") params.set("sort_by", state.sortBy);
   if (state.order !== "asc") params.set("order", state.order);
-  history.replaceState(null, "", params.size ? `/?${params}` : "/");
+  history.replaceState(null, "", params.size ? `${location.pathname}?${params}` : location.pathname);
 }
 
 function syncControls() {
@@ -115,7 +116,7 @@ function updateCountdowns() {
 
 function createLotCard(lot) {
   const article = document.createElement("article"); article.className = "lot-card";
-  const link = document.createElement("a"); link.className = "card-link"; link.href = `/lot.html?id=${encodeURIComponent(lot.id)}`; link.setAttribute("aria-label", `View ${lot.title}`);
+  const link = document.createElement("a"); link.className = "card-link"; link.href = new URL(`lot.html?id=${encodeURIComponent(lot.id)}`, catalogScriptBase); link.setAttribute("aria-label", `View ${lot.title}`);
   const imageWrap = document.createElement("div"); imageWrap.className = "card-image-wrap";
   const image = document.createElement("img"); image.className = "card-image"; image.src = lot.image_url; image.alt = `Photo of ${lot.title}`; image.loading = "lazy"; image.width = 480; image.height = 320;
   image.addEventListener("error", () => image.classList.add("is-missing"), { once: true });

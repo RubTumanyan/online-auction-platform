@@ -14,6 +14,7 @@ const profile = {
   grid: document.querySelector("#profile-grid"),
   tabs: Array.from(document.querySelectorAll(".profile-tab"))
 };
+const profileScriptBase = new URL(".", document.currentScript.src);
 let activeFilter = "active";
 
 function token() { return window.auctionAuth?.token() ?? ""; }
@@ -52,7 +53,7 @@ function badgeFor(item) {
 function createProfileCard(item) {
   const lot = item;
   const article = document.createElement("article"); article.className = "lot-card";
-  const link = document.createElement("a"); link.className = "card-link"; link.href = `/lot.html?id=${encodeURIComponent(lot.id)}`; link.setAttribute("aria-label", `View ${lot.title}`);
+  const link = document.createElement("a"); link.className = "card-link"; link.href = new URL(`lot.html?id=${encodeURIComponent(lot.id)}`, profileScriptBase); link.setAttribute("aria-label", `View ${lot.title}`);
   const imageWrap = document.createElement("div"); imageWrap.className = "card-image-wrap";
   const image = document.createElement("img"); image.className = "card-image"; image.src = lot.image_url; image.alt = `Photo of ${lot.title}`; image.loading = "lazy"; image.width = 480; image.height = 320;
   image.addEventListener("error", () => image.classList.add("is-missing"), { once: true });
@@ -155,7 +156,7 @@ function render() {
     profile.emptyCopy.textContent = "Sign in to view the lots you’re bidding on.";
     const browse = profile.empty.querySelector("a");
     browse.textContent = "Back to the catalog";
-    browse.href = "/";
+    browse.href = new URL("../", profileScriptBase);
     show("empty");
     return;
   }

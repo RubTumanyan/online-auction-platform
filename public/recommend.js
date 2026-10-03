@@ -4,6 +4,7 @@ const recommendSection = document.querySelector("#recommendations");
 const recommendTitle = document.querySelector("#recommendations-title");
 const recommendCopy = document.querySelector("#recommendations-copy");
 const recommendGrid = document.querySelector("#recommend-grid");
+const recommendScriptBase = new URL(".", document.currentScript.src);
 
 function formatRecommendMoney(cents) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(cents) / 100);
@@ -11,7 +12,7 @@ function formatRecommendMoney(cents) {
 
 function createRecommendCard(lot) {
   const article = document.createElement("article"); article.className = "lot-card recommend-card";
-  const link = document.createElement("a"); link.className = "card-link"; link.href = `/lot.html?id=${encodeURIComponent(lot.id)}`; link.setAttribute("aria-label", `View ${lot.title}`);
+  const link = document.createElement("a"); link.className = "card-link"; link.href = new URL(`lot.html?id=${encodeURIComponent(lot.id)}`, recommendScriptBase); link.setAttribute("aria-label", `View ${lot.title}`);
   const imageWrap = document.createElement("div"); imageWrap.className = "card-image-wrap";
   const image = document.createElement("img"); image.className = "card-image"; image.src = lot.image_url; image.alt = `Photo of ${lot.title}`; image.loading = "lazy"; image.width = 480; image.height = 320;
   image.addEventListener("error", () => image.classList.add("is-missing"), { once: true });
